@@ -11,7 +11,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.1 – Styled Export")
+st.caption("Version 1.1 – Full App with Styled Export")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0, 30)]
@@ -30,7 +30,6 @@ if "start_hour" not in st.session_state:
 if "end_hour" not in st.session_state:
     st.session_state.end_hour = "21:30"
 
-# Load/save helpers
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
@@ -52,7 +51,7 @@ def autosave():
 
 load_data()
 
-# Sidebar for lunch break and save options
+# Sidebar
 st.sidebar.header("Empresas y Proveedores")
 empresas_input = st.sidebar.text_area("Empresas (una por línea)", "\n".join(st.session_state.empresas))
 st.session_state.empresas = [e.strip() for e in empresas_input.splitlines() if e.strip()]
@@ -66,13 +65,14 @@ if st.sidebar.button("Guardar progreso manualmente"):
     save_data()
     st.sidebar.success("Progreso guardado.")
 
+# Lunch break
 lunch_start = st.sidebar.selectbox("Inicio del almuerzo (Bloqueo)", HOURS, index=12)
 lunch_end = st.sidebar.selectbox("Fin del almuerzo (Bloqueo)", HOURS, index=14)
 lunch_start_idx, lunch_end_idx = HOURS.index(lunch_start), HOURS.index(lunch_end)
 def is_in_lunch_break(time_val): return lunch_start_idx <= HOURS.index(time_val) < lunch_end_idx
 st.session_state.appointments = [appt for appt in st.session_state.appointments if not is_in_lunch_break(appt[3])]
 
-# Appointment management (clear/edit)
+# Manage appointments
 st.sidebar.subheader("Administrar citas")
 action = st.sidebar.selectbox("Acción", ["Ninguna", "Limpiar todo", "Limpiar por Empresa", "Limpiar por Proveedor", "Editar cita"])
 if action == "Limpiar todo" and st.sidebar.button("Ejecutar"):
@@ -116,10 +116,87 @@ if st.session_state.edit_mode and st.session_state.appointment_to_edit is not No
             autosave()
             st.success("Cita editada correctamente.")
 
-# Random and manual scheduling tabs (unchanged from last version)...
-# (Omitted for brevity, but same logic as before, with autosave on adding.)
+# Tabs for scheduling
+tab1, tab2 = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
+with tab1:
+    st.subheader("🎲 Generar citas aleatorias")
+    selected_empresas = []
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if "empresas_random" not in st.session_state:
+            st.session_state.empresas_random = [""]
+        for i, _ in enumerate(st.session_state.empresas_random):
+            empresa = st.selectbox(f"Empresa {i+1}", options=st.session_state.empresas, key=f"empresa_random_{i}")
+            selected_empresas.append(empresa)
+        if st.button("➕ Agregar otra empresa"):
+            st.session_state.empresas_random.append("")
+    with col2:
+        selected_proveedores = st.multiselect("Seleccionar proveedores", options=st.session_state.proveedores)
+    col3, col4 = st.columns(2)
+    with col3:
+        day_range = st.multiselect("Seleccionar días", DAYS, default=["Monday", "Tuesday", "Wednesday"])
+    with col4:
+        st.session_state.start_hour = st.selectbox("Inicio del día", HOURS, index=6)
+        st.session_state.end_hour = st.selectbox("Fin del día", HOURS, index=20)
+    interval = st.selectbox("Duración de la cita (min)", [30, 60])
+    if st.button("🔀 Generar citas aleatorias"):
+        start_idx, end_idx = HOURS.index(st.session_state.start_hour), HOURS.index(st.session_state.end_hour)
+        available_slots = [h for h in HOURS[start_idx:end_idx] if not is_in_lunch_break(h)]
+        available_slots = [h for h in available_slots if HOURS.index(h) % (interval // 30) == 0]
+        for empresa in selected_empresas:
+            for proveedor in selected_proveedores:
+                for day in day_range:
+                    attempts = 0
+                    while attempts < 5 and available_slots:
+                        time = choice(available_slots)
+                        if (proveedor, empresa, day, time) not in st.session_state.appointments:
+                            st.session_state.appointments.append((proveedor, empresa, day, time))
+                            break
+                        attempts += 1
+        autosave()
+        st.success("Citas generadas y guardadas.")
 
-# Styled Excel Export
+with tab2:
+    st.subheader("📝 Agendar manualmente")
+    empresa_manual = st.selectbox("Empresa", st.session_state.empresas, key="empresa_manual")
+    proveedor_manual = st.selectbox("Proveedor", st.session_state.proveedores, key="proveedor_manual")
+    dia_manual = st.selectbox("Día", DAYS, key="dia_manual")
+    hora_manual = st.selectbox("Hora", HOURS, key="hora_manual")
+    if st.button("➕ Agendar cita manual"):
+        if is_in_lunch_break(hora_manual):
+            st.warning("No se pueden agendar durante el almuerzo.")
+        else:
+            new_appointment = (proveedor_manual, empresa_manual, dia_manual, hora_manual)
+            if new_appointment in st.session_state.appointments:
+                st.warning("Esta cita ya está agendada.")
+            else:
+                st.session_state.appointments.append(new_appointment)
+                autosave()
+                st.success("Cita agendada exitosamente.")
+
+# Weekly calendar
+st.markdown("---")
+st.subheader("📅 Calendario de citas (semanal)")
+if st.session_state.appointments:
+    data = []
+    start_idx, end_idx = HOURS.index(st.session_state.start_hour), HOURS.index(st.session_state.end_hour)
+    visible_hours = HOURS[start_idx:end_idx]
+    for day in DAYS:
+        row = {"Hora": day}
+        appts = [(p, e, d, t) for (p, e, d, t) in st.session_state.appointments if d == day]
+        for time in visible_hours:
+            if is_in_lunch_break(time):
+                row[time] = "LUNCH BREAK"
+            else:
+                cell = [f"{e} - {p}" for (p, e, d, t) in appts if t == time]
+                row[time] = "; ".join(cell)
+        data.append(row)
+    df_week = pd.DataFrame(data).set_index("Hora").T
+    st.dataframe(df_week.style.apply(lambda col: ["background-color: #d9d9d9" if v == "LUNCH BREAK" else "" for v in col], axis=0), use_container_width=True)
+else:
+    st.info("No hay citas programadas aún.")
+
+# Styled Excel export
 if st.button("📤 Exportar Horario a Excel"):
     def export_schedule_excel():
         appointments_df = pd.DataFrame(st.session_state.appointments, columns=["Proveedor", "Empresa", "Día", "Hora"])
