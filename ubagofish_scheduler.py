@@ -1,7 +1,6 @@
 
 import streamlit as st
 import pandas as pd
-import datetime
 import json
 import os
 from io import BytesIO
@@ -11,7 +10,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.1 – Full App with Styled Export")
+st.caption("Version 1.2 – Full App with Styled Excel Export")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0, 30)]
@@ -51,7 +50,7 @@ def autosave():
 
 load_data()
 
-# Sidebar
+# Sidebar: Empresas/Proveedores
 st.sidebar.header("Empresas y Proveedores")
 empresas_input = st.sidebar.text_area("Empresas (una por línea)", "\n".join(st.session_state.empresas))
 st.session_state.empresas = [e.strip() for e in empresas_input.splitlines() if e.strip()]
@@ -201,6 +200,28 @@ if st.button("📤 Exportar Horario a Excel"):
     def export_schedule_excel():
         appointments_df = pd.DataFrame(st.session_state.appointments, columns=["Proveedor", "Empresa", "Día", "Hora"])
         output = BytesIO()
+
+        def style_sheet(ws):
+            header_fill = PatternFill("solid", fgColor="305496")
+            header_font = Font(color="FFFFFF", bold=True, name="Calibri", size=11)
+            lunch_fill = PatternFill("solid", fgColor="D9D9D9")
+            thin_border = Border(left=Side(style="thin"), right=Side(style="thin"),
+                                 top=Side(style="thin"), bottom=Side(style="thin"))
+            for row_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=ws.max_column), start=1):
+                for cell in row:
+                    cell.border = thin_border
+                    cell.font = Font(name="Calibri", size=11)
+                    if row_idx == 1:
+                        cell.fill = header_fill
+                        cell.font = header_font
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                    if cell.value == "LUNCH BREAK":
+                        cell.fill = lunch_fill
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+            for col in ws.columns:
+                max_len = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+                ws.column_dimensions[col[0].column_letter].width = max_len + 2
+
         def write_schedule(writer, sheet_prefix, columns_key, group_key):
             for day in appointments_df["Día"].unique():
                 day_df = appointments_df[appointments_df["Día"] == day]
@@ -218,9 +239,20 @@ if st.button("📤 Exportar Horario a Excel"):
                             paired_list.append(", ".join(row["Empresa" if group_key=="Proveedor" else "Proveedor"].tolist()) if not row.empty else "")
                     result[item] = paired_list
                 result.to_excel(writer, sheet_name=f"{sheet_prefix}_{day}", index=False)
+
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             write_schedule(writer, "Proveedores", "proveedores", "Proveedor")
             write_schedule(writer, "Empresas", "empresas", "Empresa")
+            writer.save()
+        # Apply styles
         output.seek(0)
-        st.download_button("Descargar Horario Completo", data=output, file_name="UbagoFish_Schedule.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        wb = load_workbook(output)
+        for ws in wb.worksheets:
+            style_sheet(ws)
+        final_output = BytesIO()
+        wb.save(final_output)
+        final_output.seek(0)
+        st.download_button("Descargar Horario Completo", data=final_output, file_name="UbagoFish_Schedule_Styled.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
     export_schedule_excel()
