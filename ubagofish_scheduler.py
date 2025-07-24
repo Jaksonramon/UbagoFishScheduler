@@ -243,7 +243,7 @@ if st.button("📤 Exportar Horario a Excel"):
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             write_schedule(writer, "Proveedores", "proveedores", "Proveedor")
             write_schedule(writer, "Empresas", "empresas", "Empresa")
-            writer.save()
+          
         # Apply styles
         output.seek(0)
         wb = load_workbook(output)
