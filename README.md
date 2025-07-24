@@ -1,12 +1,12 @@
-# UbagoFish Scheduler
+# UbagoFish Scheduler (v1.1 – Styled Export)
 
-This Streamlit app lets you schedule and export meeting calendars.
+This Streamlit app schedules and exports meeting calendars with styled Excel.
 
-## Deploying on Streamlit Cloud
+## Deploy on Streamlit Cloud
 1. Upload these files to a GitHub repository.
-2. On [Streamlit Cloud](https://share.streamlit.io/), log in and create a new app.
-3. Select the repo, branch `main`, and set file to `ubagofish_scheduler.py`.
-4. Deploy — your app will get a public URL.
+2. On [Streamlit Cloud](https://share.streamlit.io/), create a new app.
+3. Select the repo, branch `main`, and file `ubagofish_scheduler.py`.
+4. Streamlit will deploy and give you a public URL.
 
 ## Local Testing
 Windows: Double-click `run_local.bat`.
