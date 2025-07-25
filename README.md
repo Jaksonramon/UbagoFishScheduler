@@ -1,18 +1,17 @@
-# UbagoFish Scheduler (Version 1.2)
+# UbagoFish Scheduler (Version 1.2.1 – Autosave Lunch Break)
 
 This Streamlit app schedules, edits, and exports styled Excel schedules for Empresas and Proveedores.
 
-## How to Deploy on Streamlit Cloud
-1. Upload all files in this package to your GitHub repository.
-2. In [Streamlit Cloud](https://share.streamlit.io/), create a new app.
-3. Select your repository, branch `main`, and set the main file as `ubagofish_scheduler.py`.
-4. Deploy – your app will auto-build and be accessible via a public link.
+## What's New in 1.2.1
+- **Lunch break times now autosave** (no need to reset each session).
+- Appointments, Empresas, and Proveedores also autosave.
+- Manual "Guardar nombres" button remains as a backup for Empresas/Proveedores.
+- Styled Excel export (Calibri, blue headers, borders, grey lunch rows, two-sheet structure).
 
-## Features
-- Add, edit, clear, and manage appointments for Empresas and Proveedores.
-- Greyed-out lunch-break rows that cannot be scheduled.
-- Styled Excel export (Calibri, borders, blue headers, grey lunch rows).
-- Autosave + manual save buttons for data and names.
+## Deployment Instructions
+1. Upload all files to your GitHub repo (branch `main`).
+2. On [Streamlit Cloud](https://share.streamlit.io/), set the main file as `ubagofish_scheduler.py`.
+3. Deploy — Streamlit will build and run your app.
 
 ## Local Testing
 Windows: Double-click `run_local.bat`.
