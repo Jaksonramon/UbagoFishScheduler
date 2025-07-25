@@ -1,0 +1,56 @@
+
+body {{
+    background-color: {bg_color};
+    color: {text_color};
+}}
+.main {{
+    background-color: {bg_color};
+    font-family: 'Nunito', sans-serif;
+    color: {text_color};
+}}
+section[data-testid="stSidebar"] {{
+    background-color: {sidebar_color};
+}}
+h1, h2, h3, h4, h5, h6 {{
+    color: {header_color};
+}}
+/* Card styling */
+.card {{
+    background-color: {card_color};
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}}
+/* Buttons */
+div.stButton > button:first-child {{
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    background-color: #4DB8FF;
+    color: white;
+    border: none;
+}}
+div.stButton > button:first-child:hover {{
+    background-color: #2A9ED3;
+}}
+/* Table styling */
+.dataframe {{
+    font-size: 13px;
+    border-radius: 6px;
+    overflow: hidden;
+    color: {text_color};
+}}
+.dataframe thead th {{
+    background: #4DB8FF;
+    color: white;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}}
+.dataframe tbody tr:nth-child(even) {{
+    background-color: {alt_row_color};
+}}
+.dataframe tbody tr:hover {{
+    background-color: {hover_color} !important;
+}}
