@@ -7,12 +7,8 @@ from random import choice
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
-st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
+st.set_page_config(page_title="🐟UbagoFish Scheduler", layout="wide")
 
-# Logo inline with title
-col_logo, col_title = st.columns([0.1, 0.9])
-with col_logo:
-    st.image("logo.jpeg", width=35)
 with col_title:
     st.title("UbagoFish Scheduler")
 st.caption("Version 1.3 – Buyers/Clients, Day Selector, Time Windows")
