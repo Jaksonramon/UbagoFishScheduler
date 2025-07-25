@@ -1,2 +1,2 @@
-# UbagoFish Scheduler (Version 1.4)
-Fully functional with editing, summaries, Buyers/Clients, autosave, and styled Excel export.
+# UbagoFish Scheduler (Version 1.4 Patched)
+Includes editing, summary sheets, lunch break handling, autosave, Buyers/Clients, and patched editing bug fix.
