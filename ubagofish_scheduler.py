@@ -9,12 +9,11 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler v1.4 Final", layout="wide")
 
-# Load CSS
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.4 Final – Dark Mode, Start/End Time, All Features")
+st.caption("Version 1.4 Final – Dark Mode, Enhanced Export")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -58,12 +57,10 @@ def save_data():
 def autosave(): save_data()
 load_data()
 
-# Helpers
 lunch_start_idx, lunch_end_idx = HOURS.index(st.session_state.lunch_start), HOURS.index(st.session_state.lunch_end)
 def is_in_lunch_break(t): return lunch_start_idx <= HOURS.index(t) < lunch_end_idx
 st.session_state.appointments = [a for a in st.session_state.appointments if not is_in_lunch_break(a[3])]
 
-# Sidebar config
 with st.sidebar:
     st.header("Buyers & Clients")
     buyers_input = st.text_area("Buyers (uno por línea)", "\n".join(st.session_state.buyers))
@@ -78,7 +75,6 @@ with st.sidebar:
     st.session_state.lunch_end = st.selectbox("Fin almuerzo", HOURS, index=HOURS.index(st.session_state.lunch_end))
     st.session_state.selected_days = st.multiselect("Días a programar", DAYS, default=st.session_state.selected_days)
 
-# Scheduler tabs
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "✏️ Agendar Manualmente"])
 
 with tab_random:
@@ -138,7 +134,6 @@ with tab_manual:
             else:
                 st.session_state.appointments.append(appt); autosave(); st.success("Cita agendada exitosamente.")
 
-# Calendar
 st.subheader("📅 Calendario de Citas")
 if st.session_state.appointments:
     data=[]
@@ -153,10 +148,11 @@ if st.session_state.appointments:
     st.dataframe(df, use_container_width=True)
 else: st.info("No hay citas programadas aún.")
 
-# Export
+# Enhanced Export Logic
 if st.button("📤 Exportar a Excel"):
     df_all = pd.DataFrame(st.session_state.appointments, columns=["Client","Buyer","Día","Hora"])
     output = BytesIO()
+
     def style_ws(ws):
         header_fill=PatternFill("solid",fgColor="305496"); header_font=Font(color="FFFFFF",bold=True,name="Calibri",size=11)
         lunch_fill=PatternFill("solid",fgColor="D9D9D9"); border=Border(left=Side(style="thin"),right=Side(style="thin"),top=Side(style="thin"),bottom=Side(style="thin"))
@@ -169,22 +165,44 @@ if st.button("📤 Exportar a Excel"):
         for col in ws.columns:
             max_len=max(len(str(c.value)) if c.value else 0 for c in col)
             ws.column_dimensions[col[0].column_letter].width=max_len+2
+
     with pd.ExcelWriter(output,engine="openpyxl") as writer:
+        # Per-day Clients and Buyers Sheets
         for day in df_all["Día"].unique():
-            day_df=df_all[df_all["Día"]==day]
-            pivot=pd.pivot_table(day_df,index="Hora",columns="Buyer",values="Client",aggfunc=lambda x:", ".join(x))
-            pivot.reset_index().to_excel(writer,sheet_name=f"Schedule_{day}",index=False)
-        counts=df_all["Buyer"].value_counts().reset_index()
-        counts.columns=["Buyer","Total Citas"]
-        counts.to_excel(writer,sheet_name="Summary_Buyers",index=False)
+            # Clients: Time as first col, Clients as columns
+            times=HOURS[HOURS.index(st.session_state.start_hour):HOURS.index(st.session_state.end_hour)]
+            clients_list=st.session_state.clients
+            df_clients=pd.DataFrame({"Time":times})
+            for client in clients_list:
+                counts=df_all[(df_all["Client"]==client)&(df_all["Día"]==day)]
+                df_clients[client]=["LUNCH BREAK" if is_in_lunch_break(t) else ", ".join(counts[counts["Hora"]==t]["Buyer"]) for t in times]
+            totals=[df_all[(df_all["Client"]==c)&(df_all["Día"]==day)].shape[0] for c in clients_list]
+            df_clients.loc[-1]=["TOTAL"]+totals; df_clients.index+=1; df_clients=df_clients.sort_index()
+            df_clients.to_excel(writer,sheet_name=f"Clients_{day}",index=False)
+            # Buyers: each Buyer as row, clients as columns
+            buyers_list=st.session_state.buyers
+            df_buyers=pd.DataFrame({"Buyer":buyers_list})
+            for t in times:
+                col_vals=[]
+                for buyer in buyers_list:
+                    subset=df_all[(df_all["Buyer"]==buyer)&(df_all["Día"]==day)&(df_all["Hora"]==t)]
+                    val="LUNCH BREAK" if is_in_lunch_break(t) else ", ".join(subset["Client"]) if not subset.empty else ""
+                    col_vals.append(val)
+                df_buyers[t]=col_vals
+            df_buyers["Total"]=df_buyers.drop(columns=["Buyer"]).apply(lambda row: row[row!=""].count(),axis=1)
+            df_buyers.to_excel(writer,sheet_name=f"Buyers_{day}",index=False)
+        # Summary Sheets
+        df_all["Count"]=1
+        df_all.groupby("Client")["Count"].sum().reset_index().to_excel(writer,sheet_name="Summary_Clients",index=False)
+        df_all.groupby("Buyer")["Count"].sum().reset_index().to_excel(writer,sheet_name="Summary_Buyers",index=False)
+
     output.seek(0)
     wb=load_workbook(output)
     for ws in wb.worksheets: style_ws(ws)
     final=BytesIO(); wb.save(final); final.seek(0)
-    st.download_button("Descargar Horario", data=final, file_name="UbagoFish_Schedule_v14_Final.xlsx",
+    st.download_button("Descargar Horario Completo", data=final, file_name="UbagoFish_Schedule_v14_Enhanced.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Edit section
 with st.expander("🔧 Editar Citas", expanded=st.session_state.edit_expander_open):
     st.session_state.edit_expander_open = True
     if st.session_state.appointments:
