@@ -8,7 +8,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.4 – Buyers/Clients, Editing, Summary Sheets")
+st.caption("Version 1.4 – Buyers/Clients, Editing, Summary Sheets (Patched)")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -152,7 +152,7 @@ if st.session_state.appointments:
     st.dataframe(df.style.apply(lambda col:["background-color:#d9d9d9" if v=="LUNCH BREAK" else "" for v in col],axis=0), use_container_width=True)
 else: st.info("No hay citas programadas aún.")
 
-# Editing Section
+# Editing Section (Patched)
 st.markdown("---")
 st.subheader("✏️ Editar Citas")
 if st.session_state.appointments:
@@ -161,8 +161,10 @@ if st.session_state.appointments:
     if selected_edit:
         idx = appt_options.index(selected_edit)
         c,b,d,h = st.session_state.appointments[idx]
-        new_buyer = st.selectbox("Nuevo Buyer", st.session_state.buyers, index=st.session_state.buyers.index(b))
-        new_client = st.selectbox("Nuevo Client", st.session_state.clients, index=st.session_state.clients.index(c))
+        buyer_idx = st.session_state.buyers.index(b) if b in st.session_state.buyers else 0
+        client_idx = st.session_state.clients.index(c) if c in st.session_state.clients else 0
+        new_buyer = st.selectbox("Nuevo Buyer", st.session_state.buyers, index=buyer_idx)
+        new_client = st.selectbox("Nuevo Client", st.session_state.clients, index=client_idx)
         new_day = st.selectbox("Nuevo Día", DAYS, index=DAYS.index(d))
         new_time = st.selectbox("Nueva Hora", HOURS, index=HOURS.index(h))
         if st.button("Guardar cambios"):
@@ -176,7 +178,7 @@ if st.session_state.appointments:
 else:
     st.info("No hay citas para editar.")
 
-# Excel Export with Summary Sheets
+# Excel Export (unchanged, includes summaries)
 if st.button("📤 Exportar Horario a Excel"):
     df_all = pd.DataFrame(st.session_state.appointments, columns=["Client","Buyer","Día","Hora"])
     output = BytesIO()
