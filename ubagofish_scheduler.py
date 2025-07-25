@@ -7,34 +7,40 @@ from random import choice
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
-st.set_page_config(page_title="UbagoFish Scheduler - Polished Test", layout="wide")
+st.set_page_config(page_title="UbagoFish Scheduler - Pastel Friendly", layout="wide")
 
-# Embedded CSS for polished UI
+# Pastel-friendly CSS styling
 st.markdown("""
     <style>
-        .main {background-color: #F5F7FA;}
-        /* Card container styling */
-        .card {background-color: #FFFFFF; padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 10px;
-               box-shadow: 0 4px 12px rgba(0,0,0,0.08);}
-        /* Button styling */
-        div.stButton > button:first-child {border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600;
-                                           background-color: #1F4E79; color: white; border:none;}
-        div.stButton > button:first-child:hover {background-color: #163C5A; color: white;}
-        /* Dataframe font and header */
-        .dataframe {font-size: 13px;}
-        .dataframe thead th {position: sticky; top: 0; background: #1F4E79; color: white;}
+        body {background-color: #FFF9E6;}
+        .main {background-color: #FFF9E6;}
+        .block-container {font-family: 'Nunito', sans-serif;}
+        /* Card containers */
+        .card {background-color: #FFFFFF; padding: 1.5rem; margin-bottom: 1.5rem; 
+               border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: all 0.2s ease-in-out;}
+        .card:hover {box-shadow: 0 6px 16px rgba(0,0,0,0.15);}
+        /* Sidebar styling */
+        section[data-testid="stSidebar"] {background-color: #FFF9E6;}
+        section[data-testid="stSidebar"] .stButton>button {border-radius: 8px; background-color: #4DB8FF; color: white; font-weight: 600;}
+        /* Buttons */
+        div.stButton > button:first-child {border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; background-color: #4DB8FF; color: white; border:none;}
+        div.stButton > button:first-child:hover {background-color: #2A9ED3;}
+        /* Dataframe styling */
+        .dataframe {font-size: 13px; border-radius: 8px; overflow: hidden;}
+        .dataframe thead th {background: #4DB8FF; color: white; font-weight: bold;}
+        /* Hover effect on rows */
+        .dataframe tbody tr:hover {background-color: #E6FFF5 !important;}
     </style>
 """, unsafe_allow_html=True)
 
-st.title("UbagoFish Scheduler (Polished Test)")
-st.caption("Test Version – Modern UI, Summary, Filtering, Compact View")
+st.title("UbagoFish Scheduler – Pastel & Friendly")
+st.caption("Playful styled version with all v1.4 features")
 
 # Constants and session state
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
 DATA_FILE = "ubagofish_data.json"
 
-# Session state defaults
 for key in ["clients", "buyers", "appointments"]:
     if key not in st.session_state: st.session_state[key] = []
 if "edit_expander_open" not in st.session_state: st.session_state.edit_expander_open = False
@@ -67,7 +73,12 @@ def save_data():
 def autosave(): save_data()
 load_data()
 
-# Sidebar: grouped sections
+# Utility
+lunch_start_idx, lunch_end_idx = HOURS.index(st.session_state.lunch_start), HOURS.index(st.session_state.lunch_end)
+def is_in_lunch_break(t): return lunch_start_idx <= HOURS.index(t) < lunch_end_idx
+st.session_state.appointments = [a for a in st.session_state.appointments if not is_in_lunch_break(a[3])]
+
+# Sidebar
 with st.sidebar:
     with st.expander("Buyers & Clients", expanded=True):
         buyers_input = st.text_area("Buyers (uno por línea)", "\n".join(st.session_state.buyers))
@@ -91,15 +102,10 @@ with st.sidebar:
         if st.button("Limpiar TODO"):
             st.session_state.appointments = []; autosave(); st.success("Todas las citas eliminadas.")
 
-# Utility
-lunch_start_idx, lunch_end_idx = HOURS.index(st.session_state.lunch_start), HOURS.index(st.session_state.lunch_end)
-def is_in_lunch_break(t): return lunch_start_idx <= HOURS.index(t) < lunch_end_idx
-st.session_state.appointments = [a for a in st.session_state.appointments if not is_in_lunch_break(a[3])]
+# Tabs for scheduling
+tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
 
-# Tabs: Scheduler and Calendar
-tab_sched, tab_calendar = st.tabs(["📅 Programar Citas", "📊 Ver Calendario"])
-
-with tab_sched:
+with tab_random:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("🎲 Generador Aleatorio")
     selected_buyers = []
@@ -145,6 +151,7 @@ with tab_sched:
         autosave(); st.success("Citas generadas.")
     st.markdown('</div>', unsafe_allow_html=True)
 
+with tab_manual:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("📝 Agendar Manualmente")
     buyer_manual = st.selectbox("Buyer", st.session_state.buyers, key="buyer_manual")
@@ -160,107 +167,29 @@ with tab_sched:
                 st.session_state.appointments.append(appt); autosave(); st.success("Cita agendada exitosamente.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-with tab_calendar:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📊 Resumen y Filtro")
-    total_b = len(st.session_state.buyers)
-    total_c = len(st.session_state.clients)
-    total_a = len(st.session_state.appointments)
-    colB, colC, colA = st.columns(3)
-    if colB.button(f"Buyers: {total_b}"):
-        st.session_state.filter_buyer = None if st.session_state.filter_buyer else "ALL"
-    if colC.button(f"Clients: {total_c}"):
-        st.session_state.filter_client = None if st.session_state.filter_client else "ALL"
-    colA.markdown(f"**Citas totales:** {total_a}")
-    st.markdown('</div>', unsafe_allow_html=True)
+# Calendar and Summary below tabs (always visible)
+st.markdown('<div class="card">', unsafe_allow_html=True)
+st.subheader("📊 Resumen y Calendario de Citas")
+total_b = len(st.session_state.buyers)
+total_c = len(st.session_state.clients)
+total_a = len(st.session_state.appointments)
+colB, colC, colA = st.columns(3)
+colB.metric("Buyers", total_b)
+colC.metric("Clients", total_c)
+colA.metric("Total Citas", total_a)
+st.session_state.show_compact = st.checkbox("Modo compacto (solo franjas con citas)", value=st.session_state.show_compact)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📊 Calendario de Citas")
-    st.session_state.show_compact = st.checkbox("Modo compacto (solo franjas con citas)", value=st.session_state.show_compact)
-    if st.session_state.appointments:
-        # Apply filtering logic (placeholder for clickable Buyers/Clients filtering)
-        visible_hours = HOURS[HOURS.index(st.session_state.start_hour):HOURS.index(st.session_state.end_hour)]
-        data=[]
-        for day in DAYS:
-            row={"Hora":day}; appts=[a for a in st.session_state.appointments if a[2]==day]
-            for time in visible_hours:
-                if st.session_state.show_compact and not any(a[3]==time for a in appts): continue
-                if is_in_lunch_break(time): row[time]="LUNCH BREAK"
-                else: row[time]="; ".join([f"**{b}** - {c}" for c,b,d,t in appts if t==time])
-            data.append(row)
-        df=pd.DataFrame(data).set_index("Hora").T
-        st.dataframe(df.style.apply(lambda col:["background-color:#eaeaea;font-weight:bold" if v=="LUNCH BREAK" else "" for v in col],axis=0), use_container_width=True)
-    else: st.info("No hay citas programadas aún.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📤 Exportar Horario")
-    if st.button("Exportar a Excel"):
-        df_all = pd.DataFrame(st.session_state.appointments, columns=["Client","Buyer","Día","Hora"])
-        output = BytesIO()
-        def style_ws(ws):
-            header_fill=PatternFill("solid",fgColor="305496"); header_font=Font(color="FFFFFF",bold=True,name="Calibri",size=11)
-            lunch_fill=PatternFill("solid",fgColor="D9D9D9"); border=Border(left=Side(style="thin"),right=Side(style="thin"),top=Side(style="thin"),bottom=Side(style="thin"))
-            for r,row in enumerate(ws.iter_rows(min_row=1,max_row=ws.max_row,max_col=ws.max_column),start=1):
-                for cell in row:
-                    cell.border=border; cell.font=Font(name="Calibri",size=11)
-                    if r==1: cell.fill=header_fill; cell.font=header_font; cell.alignment=Alignment(horizontal="center",vertical="center")
-                    if cell.value=="LUNCH BREAK": cell.fill=lunch_fill
-                    cell.alignment=Alignment(horizontal="center",vertical="center")
-            for col in ws.columns:
-                max_len=max(len(str(c.value)) if c.value else 0 for c in col)
-                ws.column_dimensions[col[0].column_letter].width=max_len+2
-        def write_sheet(writer,prefix,key,group):
-            for day in df_all["Día"].unique():
-                df_day=df_all[df_all["Día"]==day]; times=HOURS[HOURS.index(st.session_state.start_hour):HOURS.index(st.session_state.end_hour)]
-                result=pd.DataFrame({"Time":times})
-                for item in st.session_state[key]:
-                    cells=[]; sub=df_day[df_day[group]==item]
-                    for t in times:
-                        if is_in_lunch_break(t): cells.append("LUNCH BREAK")
-                        else:
-                            sub_row=sub[sub["Hora"]==t]; cells.append(", ".join(sub_row["Buyer" if group=="Client" else "Client"].tolist()) if not sub_row.empty else "")
-                    result[item]=cells
-                result.to_excel(writer,sheet_name=f"{prefix}_{day}",index=False)
-        def write_summary(writer,prefix,column):
-            counts=df_all[column].value_counts().reset_index()
-            counts.columns=[column,"Total Citas"]
-            counts.to_excel(writer,sheet_name=f"Summary_{prefix}",index=False)
-        with pd.ExcelWriter(output,engine="openpyxl") as writer:
-            write_sheet(writer,"Clients","clients","Client")
-            write_sheet(writer,"Buyers","buyers","Buyer")
-            write_summary(writer,"Clients","Client")
-            write_summary(writer,"Buyers","Buyer")
-        output.seek(0); wb=load_workbook(output)
-        for ws in wb.worksheets: style_ws(ws)
-        final=BytesIO(); wb.save(final); final.seek(0)
-        st.download_button("Descargar Horario Completo", data=final,
-                           file_name="UbagoFish_Schedule_Polished_Test.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Collapsible Editar Citas below
-    with st.expander("✏️ Editar Citas", expanded=st.session_state.edit_expander_open):
-        st.session_state.edit_expander_open = True
-        if st.session_state.appointments:
-            appt_options = [f"{c} con {b} ({d} a las {h})" for c,b,d,h in st.session_state.appointments]
-            selected_edit = st.selectbox("Selecciona una cita para editar", appt_options)
-            if selected_edit:
-                idx = appt_options.index(selected_edit)
-                c,b,d,h = st.session_state.appointments[idx]
-                buyer_idx = st.session_state.buyers.index(b) if b in st.session_state.buyers else 0
-                client_idx = st.session_state.clients.index(c) if c in st.session_state.clients else 0
-                new_buyer = st.selectbox("Nuevo Buyer", st.session_state.buyers, index=buyer_idx)
-                new_client = st.selectbox("Nuevo Client", st.session_state.clients, index=client_idx)
-                new_day = st.selectbox("Nuevo Día", DAYS, index=DAYS.index(d))
-                new_time = st.selectbox("Nueva Hora", HOURS, index=HOURS.index(h))
-                if st.button("Guardar cambios"):
-                    if is_in_lunch_break(new_time): st.warning("No se pueden agendar durante el almuerzo.")
-                    else:
-                        new_appt = (new_client,new_buyer,new_day,new_time)
-                        if new_appt in st.session_state.appointments and new_appt != st.session_state.appointments[idx]:
-                            st.warning("Ya existe una cita con estos detalles.")
-                        else:
-                            st.session_state.appointments[idx] = new_appt; autosave(); st.success("Cita editada exitosamente.")
-        else:
-            st.info("No hay citas para editar.")
+if st.session_state.appointments:
+    visible_hours = HOURS[HOURS.index(st.session_state.start_hour):HOURS.index(st.session_state.end_hour)]
+    data=[]
+    for day in DAYS:
+        row={"Hora":day}; appts=[a for a in st.session_state.appointments if a[2]==day]
+        for time in visible_hours:
+            if st.session_state.show_compact and not any(a[3]==time for a in appts): continue
+            if is_in_lunch_break(time): row[time]="LUNCH BREAK"
+            else: row[time]="; ".join([f"<span style='color:#009688'><b>{b}</b></span> - <span style='color:#FF7F50'>{c}</span>" for c,b,d,t in appts if t==time])
+        data.append(row)
+    df=pd.DataFrame(data).set_index("Hora").T
+    st.write(df.to_html(escape=False), unsafe_allow_html=True)
+else: st.info("No hay citas programadas aún.")
+st.markdown('</div>', unsafe_allow_html=True)
