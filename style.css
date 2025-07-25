@@ -14,7 +14,6 @@ section[data-testid="stSidebar"] {
 h1, h2, h3, h4, h5, h6 {
     color: #F8FAFC;
 }
-/* Card styling */
 .card {
     background-color: #334155;
     padding: 1.5rem;
@@ -22,7 +21,6 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-/* Buttons */
 div.stButton > button:first-child {
     border-radius: 8px;
     padding: 0.5rem 1rem;
@@ -34,7 +32,6 @@ div.stButton > button:first-child {
 div.stButton > button:first-child:hover {
     background-color: #2A9ED3;
 }
-/* Table styling */
 .dataframe {
     font-size: 13px;
     border-radius: 6px;
