@@ -8,8 +8,6 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
-
-# Persistent state for Editar Citas expander
 if 'edit_expander_open' not in st.session_state:
     st.session_state.edit_expander_open = False
 st.title("🐟 UbagoFish Scheduler")
@@ -126,7 +124,7 @@ with random_tab:
                         if (client,buyer,day,t) not in st.session_state.appointments:
                             st.session_state.appointments.append((client,buyer,day,t)); break
                         attempts += 1
-            autosave(); st.success("Citas generadas.")
+        autosave(); st.success("Citas generadas.")
 
 with manual_tab:
     st.subheader("📝 Agendar manualmente")
@@ -135,38 +133,39 @@ with manual_tab:
     dia_manual = st.selectbox("Día", DAYS, key="dia_manual")
     hora_manual = st.selectbox("Hora", HOURS, key="hora_manual")
     if st.button("➕ Agendar cita manual"):
-            if is_in_lunch_break(hora_manual): st.warning("No se pueden agendar durante el almuerzo.")
-            else:
+        if is_in_lunch_break(hora_manual): st.warning("No se pueden agendar durante el almuerzo.")
+        else:
             appt = (client_manual,buyer_manual,dia_manual,hora_manual)
-                if appt in st.session_state.appointments: st.warning("Esta cita ya está agendada.")
-                else:
-                    st.session_state.appointments.append(appt); autosave(); st.success("Cita agendada exitosamente.")
+            if appt in st.session_state.appointments: st.warning("Esta cita ya está agendada.")
+            else:
+                st.session_state.appointments.append(appt); autosave(); st.success("Cita agendada exitosamente.")
 
 # Calendar View
 st.markdown("---")
 st.subheader("📅 Calendario de citas (semanal)")
-    if st.session_state.appointments:
+if st.session_state.appointments:
     data=[]; visible_hours = HOURS[HOURS.index(st.session_state.start_hour):HOURS.index(st.session_state.end_hour)]
     for day in DAYS:
         row={"Hora":day}; appts=[a for a in st.session_state.appointments if a[2]==day]
         for time in visible_hours:
             if is_in_lunch_break(time): row[time]="LUNCH BREAK"
-                else: row[time]="; ".join([f"{b} - {c}" for c,b,d,t in appts if t==time])
+            else: row[time]="; ".join([f"{b} - {c}" for c,b,d,t in appts if t==time])
         data.append(row)
     df=pd.DataFrame(data).set_index("Hora").T
     st.dataframe(df.style.apply(lambda col:["background-color:#d9d9d9" if v=="LUNCH BREAK" else "" for v in col],axis=0), use_container_width=True)
-    else: st.info("No hay citas programadas aún.")
+else: st.info("No hay citas programadas aún.")
 
 # Editing Section (Patched)
 st.markdown("---")
-with st.expander("✏️ Editar Citas", expanded=st.session_state.edit_expander_open):
+# Collapsible Editar Citas Section
+with st.expander("✏️ Editar Citas", expanded=st.session_state.get('edit_expander_open', False)):
     st.session_state.edit_expander_open = True
     if st.session_state.appointments:
         appt_options = [f"{c} con {b} ({d} a las {h})" for c,b,d,h in st.session_state.appointments]
         selected_edit = st.selectbox("Selecciona una cita para editar", appt_options)
         if selected_edit:
             idx = appt_options.index(selected_edit)
-        c,b,d,h = st.session_state.appointments[idx]
+            c,b,d,h = st.session_state.appointments[idx]
             buyer_idx = st.session_state.buyers.index(b) if b in st.session_state.buyers else 0
             client_idx = st.session_state.clients.index(c) if c in st.session_state.clients else 0
             new_buyer = st.selectbox("Nuevo Buyer", st.session_state.buyers, index=buyer_idx)
@@ -177,14 +176,14 @@ with st.expander("✏️ Editar Citas", expanded=st.session_state.edit_expander_
                 if is_in_lunch_break(new_time): st.warning("No se pueden agendar durante el almuerzo.")
                 else:
                     new_appt = (new_client,new_buyer,new_day,new_time)
-                if new_appt in st.session_state.appointments and new_appt != st.session_state.appointments[idx]:
+                    if new_appt in st.session_state.appointments and new_appt != st.session_state.appointments[idx]:
                         st.warning("Ya existe una cita con estos detalles.")
                     else:
                         st.session_state.appointments[idx] = new_appt; autosave(); st.success("Cita editada exitosamente.")
     else:
         st.info("No hay citas para editar.")
-
-# Excel Export (unchanged, includes summaries)
+    
+    # Excel Export (unchanged, includes summaries)
 if st.button("📤 Exportar Horario a Excel"):
     df_all = pd.DataFrame(st.session_state.appointments, columns=["Client","Buyer","Día","Hora"])
     output = BytesIO()
@@ -208,7 +207,7 @@ if st.button("📤 Exportar Horario a Excel"):
                 cells=[]; sub=df_day[df_day[group]==item]
                 for t in times:
                     if is_in_lunch_break(t): cells.append("LUNCH BREAK")
-                        else:
+                    else:
                         sub_row=sub[sub["Hora"]==t]; cells.append(", ".join(sub_row["Buyer" if group=="Client" else "Client"].tolist()) if not sub_row.empty else "")
                 result[item]=cells
             result.to_excel(writer,sheet_name=f"{prefix}_{day}",index=False)
