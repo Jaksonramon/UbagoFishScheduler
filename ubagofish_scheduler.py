@@ -10,7 +10,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 st.set_page_config(page_title="🐟UbagoFish Scheduler", layout="wide")
 
 with col_title:
-    st.title("UbagoFish Scheduler")
+    st.title("🐟UbagoFish Scheduler")
 st.caption("Version 1.3 – Buyers/Clients, Day Selector, Time Windows")
 
 # Days, hours, and data file
