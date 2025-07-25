@@ -10,6 +10,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 if 'edit_expander_open' not in st.session_state:
     st.session_state.edit_expander_open = False
+    st.session_state.edit_expander_open = False
 st.title("🐟 UbagoFish Scheduler")
 st.caption("Version 1.4 – Buyers/Clients, Editing, Summary Sheets (Patched)")
 
