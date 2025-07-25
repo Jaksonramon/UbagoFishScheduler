@@ -262,3 +262,4 @@ with st.expander("🔧 Editar Citas", expanded=st.session_state.edit_expander_op
                         st.warning("Ya existe una cita con estos detalles.")
                     else:
                         st.session_state.appointments[idx] = new_appt; autosave(); st.success("Cita editada exitosamente.")
+
