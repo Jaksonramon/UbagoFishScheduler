@@ -258,3 +258,4 @@ with st.expander("🔧 Editar Citas", expanded=st.session_state.edit_expander_op
                 elif not is_slot_free(new_c,new_b,new_d,new_h): st.warning("El Buyer o Client ya tiene cita a esa hora.")
                 else:
                     st.session_state.appointments[idx]=(new_c,new_b,new_d,new_h); autosave(); st.success("Cita editada.")
+ 
