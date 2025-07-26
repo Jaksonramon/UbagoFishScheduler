@@ -4,18 +4,18 @@ import pandas as pd
 import json, os
 from io import BytesIO
 from random import choice
-from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font, Alignment
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.9 – Start/End of Day Restored + All v1.8 Features")
+st.caption("Version 1.9 Styled – Full Excel Formatting Applied")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0, 30)]
 DATA_FILE = "ubagofish_data.json"
 
-# Initialize session state
+# Session state init
 for key in ["clients", "buyers", "appointments"]:
     if key not in st.session_state:
         st.session_state[key] = []
@@ -112,9 +112,8 @@ with st.sidebar.expander("🗑️ Borrar Citas"):
         autosave()
         st.success(f"Todas las citas de {day_to_clear} eliminadas.")
 
-# Tabs for randomizer and manual scheduling
+# Tabs for scheduling
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
-
 with tab_random:
     st.subheader("🎲 Generar citas aleatorias")
     selected_buyers = []
@@ -127,7 +126,6 @@ with tab_random:
         if st.button("➕ Agregar otro Buyer"): st.session_state.buyers_random.append("")
     with col2:
         selected_clients = st.multiselect("Seleccionar Clients", options=st.session_state.clients)
-
     st.markdown("### Ventanas horarias (opcional)")
     for buyer in selected_buyers:
         st.session_state.time_windows.setdefault(buyer, {})
@@ -138,7 +136,6 @@ with tab_random:
             with col_to:
                 end = st.selectbox(f"{buyer} - {day} hasta", HOURS, key=f"{buyer}_{day}_end", index=HOURS.index(st.session_state.time_windows.get(buyer, {}).get(day, {}).get("end", st.session_state.end_hour)))
             st.session_state.time_windows[buyer][day] = {"start": start, "end": end}
-
     interval = st.selectbox("Duración de la cita (min)", [30, 60])
     if st.button("🔀 Generar citas aleatorias"):
         for buyer in selected_buyers:
@@ -184,7 +181,6 @@ with tab_manual:
                     autosave()
                     st.success("Cita agendada exitosamente.")
 
-# Collapsible Edit Section (sorted, searchable)
 with st.expander("✏️ Editar Citas"):
     if st.session_state.appointments:
         def sort_key(a):
@@ -214,11 +210,29 @@ if st.session_state.appointments:
             row[time] = "; ".join(cell)
         table_data.append(row)
     df = pd.DataFrame(table_data).set_index("Hora").T
-    # Filter by start/end hours
     df = df.loc[df.index[(df.index >= st.session_state.start_hour) & (df.index < st.session_state.end_hour)]]
     st.dataframe(df, use_container_width=True)
 else:
     st.info("No hay citas programadas aún.")
+
+def style_excel(workbook, lunch_start, lunch_end):
+    thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    grey_fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+    bold_font = Font(bold=True)
+    center_align = Alignment(horizontal="center", vertical="center")
+    for sheet in workbook.worksheets:
+        sheet.freeze_panes = "B2"
+        for col in sheet.columns:
+            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+            sheet.column_dimensions[col[0].column_letter].width = max_length + 2
+        for row in sheet.iter_rows():
+            for cell in row:
+                cell.alignment = center_align
+                cell.border = thin_border
+                if cell.row == 1 or cell.row == 2:
+                    cell.font = bold_font
+                if str(cell.value) in [lunch_start, lunch_end] or (cell.row > 2 and lunch_start <= str(sheet.cell(row=cell.row, column=1).value) < lunch_end):
+                    cell.fill = grey_fill
 
 def export_schedule():
     output = BytesIO()
@@ -235,8 +249,12 @@ def export_schedule():
                 totals_row = pd.DataFrame([["TOTAL"] + totals], columns=["Time"] + list(df_entity.columns))
                 df_export = pd.concat([totals_row, df_entity.reset_index().rename(columns={"index":"Time"})])
                 df_export.to_excel(writer, sheet_name=f"{entity_type}_{day}", index=False)
-    output.seek(0)
-    return output
+    workbook = load_workbook(output)
+    style_excel(workbook, st.session_state.lunch_start, st.session_state.lunch_end)
+    output_styled = BytesIO()
+    workbook.save(output_styled)
+    output_styled.seek(0)
+    return output_styled
 
 if st.button("📤 Exportar a Excel"):
     data = export_schedule()
