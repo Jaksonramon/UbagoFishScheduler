@@ -13,7 +13,7 @@ with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.4 – Unified Export, Light Sidebar, Clear Tools")
+st.caption("Version 1.4 – Light Grey Theme, Export, Editing, Clearing")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -165,5 +165,76 @@ if st.session_state.appointments:
     st.dataframe(df, use_container_width=True)
 else: st.info("No hay citas programadas aún.")
 
-# Export logic remains unchanged (Clients & Buyers unified format, lunch greyed, totals, summaries)
-# (Copy from last approved export implementation here, omitted for brevity)
+# --- Export to Excel ---
+if st.button("📤 Exportar a Excel"):
+    df_all = pd.DataFrame(st.session_state.appointments, columns=["Client","Buyer","Día","Hora"])
+    output = BytesIO()
+
+    def style_ws(ws):
+        header_fill=PatternFill("solid",fgColor="305496")
+        header_font=Font(color="FFFFFF",bold=True,name="Calibri",size=11)
+        lunch_fill=PatternFill("solid",fgColor="D9D9D9")
+        border=Border(left=Side(style="thin"),right=Side(style="thin"),top=Side(style="thin"),bottom=Side(style="thin"))
+        for r,row in enumerate(ws.iter_rows(min_row=1,max_row=ws.max_row,max_col=ws.max_column),start=1):
+            for cell in row:
+                cell.border=border; cell.font=Font(name="Calibri",size=11)
+                if r==1:
+                    cell.fill=header_fill; cell.font=header_font; cell.alignment=Alignment(horizontal="center",vertical="center")
+                if cell.value=="LUNCH BREAK":
+                    cell.fill=lunch_fill; cell.alignment=Alignment(horizontal="center",vertical="center")
+                cell.alignment=Alignment(horizontal="center",vertical="center")
+        for col in ws.columns:
+            max_len=max(len(str(c.value)) if c.value else 0 for c in col)
+            ws.column_dimensions[col[0].column_letter].width=max_len+2
+
+    with pd.ExcelWriter(output,engine="openpyxl") as writer:
+        times=HOURS[HOURS.index(st.session_state.start_hour):HOURS.index(st.session_state.end_hour)]
+        for day in df_all["Día"].unique():
+            df_clients=pd.DataFrame({"Time":times})
+            for client in st.session_state.clients:
+                c_appts=df_all[(df_all["Client"]==client)&(df_all["Día"]==day)]
+                df_clients[client]=["LUNCH BREAK" if is_in_lunch_break(t) else ", ".join(c_appts[c_appts["Hora"]==t]["Buyer"]) for t in times]
+            totals=[df_all[(df_all["Client"]==c)&(df_all["Día"]==day)].shape[0] for c in st.session_state.clients]
+            df_clients.loc[-1]=["TOTAL"]+totals; df_clients.index+=1; df_clients=df_clients.sort_index()
+            df_clients.to_excel(writer,sheet_name=f"Clients_{day}",index=False)
+
+            df_buyers=pd.DataFrame({"Time":times})
+            for buyer in st.session_state.buyers:
+                b_appts=df_all[(df_all["Buyer"]==buyer)&(df_all["Día"]==day)]
+                df_buyers[buyer]=["LUNCH BREAK" if is_in_lunch_break(t) else ", ".join(b_appts[b_appts["Hora"]==t]["Client"]) for t in times]
+            totals_b=[df_all[(df_all["Buyer"]==b)&(df_all["Día"]==day)].shape[0] for b in st.session_state.buyers]
+            df_buyers.loc[-1]=["TOTAL"]+totals_b; df_buyers.index+=1; df_buyers=df_buyers.sort_index()
+            df_buyers.to_excel(writer,sheet_name=f"Buyers_{day}",index=False)
+
+        df_all["Count"]=1
+        df_all.groupby("Client")["Count"].sum().reset_index().to_excel(writer,sheet_name="Summary_Clients",index=False)
+        df_all.groupby("Buyer")["Count"].sum().reset_index().to_excel(writer,sheet_name="Summary_Buyers",index=False)
+
+    output.seek(0)
+    wb=load_workbook(output)
+    for ws in wb.worksheets: style_ws(ws)
+    final=BytesIO(); wb.save(final); final.seek(0)
+    st.download_button("Descargar Horario Completo", data=final, file_name="UbagoFish_Schedule_v14.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+with st.expander("🔧 Editar Citas", expanded=st.session_state.edit_expander_open):
+    st.session_state.edit_expander_open = True
+    if st.session_state.appointments:
+        options = [f"{c} con {b} ({d} {h})" for c,b,d,h in st.session_state.appointments]
+        sel = st.selectbox("Seleccionar cita para editar", options)
+        if sel:
+            idx = options.index(sel)
+            c,b,d,h = st.session_state.appointments[idx]
+            new_b = st.selectbox("Nuevo Buyer", st.session_state.buyers, index=st.session_state.buyers.index(b))
+            new_c = st.selectbox("Nuevo Client", st.session_state.clients, index=st.session_state.clients.index(c))
+            new_d = st.selectbox("Nuevo Día", DAYS, index=DAYS.index(d))
+            new_h = st.selectbox("Nueva Hora", HOURS, index=HOURS.index(h))
+            if st.button("Guardar cambios"):
+                if is_in_lunch_break(new_h): st.warning("No se pueden agendar durante el almuerzo.")
+                else:
+                    new_appt=(new_c,new_b,new_d,new_h)
+                    if new_appt in st.session_state.appointments and new_appt!=st.session_state.appointments[idx]:
+                        st.warning("Ya existe una cita igual.")
+                    else:
+                        st.session_state.appointments[idx]=new_appt; autosave(); st.success("Cita editada.")
+
