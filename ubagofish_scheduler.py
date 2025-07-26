@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.3 – Clean Randomizer + Clear Options + Day Hours Selector")
+st.caption("Version 2.3 – Clean Randomizer + Clear Options + Day & Hours Selectors")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -79,6 +79,10 @@ clients_input = st.sidebar.text_area("Clients (one per line)", "\n".join(st.sess
 st.session_state.clients = [c.strip() for c in clients_input.splitlines() if c.strip()]
 if st.sidebar.button("Guardar nombres"):
     autosave(); st.sidebar.success("Nombres guardados.")
+
+# Day selector
+st.sidebar.subheader("Seleccionar Días")
+st.session_state.selected_days = st.sidebar.multiselect("Días para programar", DAYS, default=st.session_state.selected_days)
 
 # Start and End of Day selectors
 st.sidebar.subheader("Horario del Día")
@@ -200,7 +204,7 @@ st.markdown("---")
 st.subheader("📅 Calendario")
 if st.session_state.appointments:
     table_data=[]
-    for d in st.session_state.selected_days or DAYS:
+    for d in st.session_state.selected_days:
         row={"Hora":d}
         d_appts=[(c,b,dd,t) for (c,b,dd,t) in st.session_state.appointments if dd==d]
         for t in HOURS:
@@ -242,7 +246,7 @@ def export_schedule():
     output=BytesIO()
     with pd.ExcelWriter(output,engine="openpyxl") as writer:
         for typ in ["Buyers","Clients"]:
-            for d in st.session_state.selected_days or DAYS:
+            for d in st.session_state.selected_days:
                 cols=st.session_state.buyers if typ=="Buyers" else st.session_state.clients
                 df_entity=pd.DataFrame(index=[h for h in HOURS if HOURS.index(st.session_state.start_hour)<=HOURS.index(h)<HOURS.index(st.session_state.end_hour)],columns=cols)
                 for (c,b,dd,t) in st.session_state.appointments:
