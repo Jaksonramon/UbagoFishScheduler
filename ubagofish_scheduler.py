@@ -9,7 +9,7 @@ from openpyxl.styles import PatternFill, Font, Alignment
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.8 – Sorted, Searchable Edit Dropdown + All v1.7 Features")
+st.caption("Version 1.9 – Start/End of Day Restored + All v1.8 Features")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0, 30)]
@@ -33,6 +33,8 @@ def load_data():
             st.session_state.clients = data.get("clients", [])
             st.session_state.buyers = data.get("buyers", [])
             st.session_state.appointments = [tuple(a) for a in data.get("appointments", [])]
+            st.session_state.start_hour = data.get("start_hour", "06:00")
+            st.session_state.end_hour = data.get("end_hour", "21:30")
             st.session_state.lunch_start = data.get("lunch_start", "12:00")
             st.session_state.lunch_end = data.get("lunch_end", "14:00")
             st.session_state.selected_days = data.get("selected_days", ["Monday", "Tuesday"])
@@ -44,6 +46,8 @@ def save_data():
             "clients": st.session_state.clients,
             "buyers": st.session_state.buyers,
             "appointments": st.session_state.appointments,
+            "start_hour": st.session_state.start_hour,
+            "end_hour": st.session_state.end_hour,
             "lunch_start": st.session_state.lunch_start,
             "lunch_end": st.session_state.lunch_end,
             "selected_days": st.session_state.selected_days,
@@ -77,6 +81,10 @@ st.session_state.clients = [c.strip() for c in clients_input.splitlines() if c.s
 if st.sidebar.button("Guardar nombres"):
     autosave()
     st.sidebar.success("Buyers & Clients saved.")
+
+st.sidebar.subheader("Horario de Jornada")
+st.session_state.start_hour = st.sidebar.selectbox("Inicio del día", HOURS, index=HOURS.index(st.session_state.start_hour))
+st.session_state.end_hour = st.sidebar.selectbox("Fin del día", HOURS, index=HOURS.index(st.session_state.end_hour))
 
 st.sidebar.subheader("Lunch Break")
 st.session_state.lunch_start = st.sidebar.selectbox("Start", HOURS, index=HOURS.index(st.session_state.lunch_start))
@@ -176,19 +184,17 @@ with tab_manual:
                     autosave()
                     st.success("Cita agendada exitosamente.")
 
-# Collapsible Edit Section with sorted, searchable dropdown
+# Collapsible Edit Section (sorted, searchable)
 with st.expander("✏️ Editar Citas"):
     if st.session_state.appointments:
-        # Sort appointments
         def sort_key(a):
             return (DAYS.index(a[2]), HOURS.index(a[3]), a[1], a[0])
         sorted_appts = sorted(st.session_state.appointments, key=sort_key)
-        # Build display labels with day separators
         options = []
         last_day = None
         for (c,b,d,t) in sorted_appts:
             if d != last_day and last_day is not None:
-                options.append("----")  # blank separator
+                options.append("----")
             options.append(f"{d} - {t} | {b} - {c}")
             last_day = d
         selected_label = st.selectbox("Selecciona cita para editar", options, key="edit_selector")
@@ -208,6 +214,8 @@ if st.session_state.appointments:
             row[time] = "; ".join(cell)
         table_data.append(row)
     df = pd.DataFrame(table_data).set_index("Hora").T
+    # Filter by start/end hours
+    df = df.loc[df.index[(df.index >= st.session_state.start_hour) & (df.index < st.session_state.end_hour)]]
     st.dataframe(df, use_container_width=True)
 else:
     st.info("No hay citas programadas aún.")
@@ -218,9 +226,9 @@ def export_schedule():
         for entity_type in ["Buyers", "Clients"]:
             for day in DAYS:
                 cols = st.session_state.buyers if entity_type=="Buyers" else st.session_state.clients
-                df_entity = pd.DataFrame(index=HOURS, columns=cols)
+                df_entity = pd.DataFrame(index=[h for h in HOURS if HOURS.index(st.session_state.start_hour) <= HOURS.index(h) < HOURS.index(st.session_state.end_hour)], columns=cols)
                 for (c,b,d,t) in st.session_state.appointments:
-                    if d == day:
+                    if d == day and t in df_entity.index:
                         key = b if entity_type=="Buyers" else c
                         df_entity.at[t,key] = (c if entity_type=="Buyers" else b)
                 totals = [df_entity[col].notna().sum() for col in df_entity.columns]
