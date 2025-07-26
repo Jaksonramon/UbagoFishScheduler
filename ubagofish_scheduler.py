@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import json, os
@@ -9,13 +8,13 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.9 – Excel Styled (Dark Blue Headers, Borders, Lunch Grey)")
+st.caption("Version 1.9 – Blue Header Styled + Day Selector")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0, 30)]
 DATA_FILE = "ubagofish_data.json"
 
-# Session state init
+# Initialize session state
 for key in ["clients", "buyers", "appointments"]:
     if key not in st.session_state:
         st.session_state[key] = []
@@ -26,6 +25,7 @@ if "lunch_end" not in st.session_state: st.session_state.lunch_end = "14:00"
 if "selected_days" not in st.session_state: st.session_state.selected_days = ["Monday", "Tuesday"]
 if "time_windows" not in st.session_state: st.session_state.time_windows = {}
 
+# Load & save data
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
@@ -59,6 +59,7 @@ def autosave():
 
 load_data()
 
+# Helpers
 def is_in_lunch_break(time_str):
     return HOURS.index(st.session_state.lunch_start) <= HOURS.index(time_str) < HOURS.index(st.session_state.lunch_end)
 
@@ -72,7 +73,7 @@ def get_next_available_slots(start, end, interval):
     start_idx, end_idx = HOURS.index(start), HOURS.index(end)
     return [h for h in HOURS[start_idx:end_idx] if not is_in_lunch_break(h) and HOURS.index(h) % (interval//30)==0]
 
-# Sidebar setup
+# Sidebar
 st.sidebar.header("Buyers & Clients")
 buyers_input = st.sidebar.text_area("Buyers (one per line)", "\n".join(st.session_state.buyers))
 st.session_state.buyers = [b.strip() for b in buyers_input.splitlines() if b.strip()]
@@ -90,6 +91,11 @@ st.sidebar.subheader("Lunch Break")
 st.session_state.lunch_start = st.sidebar.selectbox("Start", HOURS, index=HOURS.index(st.session_state.lunch_start))
 st.session_state.lunch_end = st.sidebar.selectbox("End", HOURS, index=HOURS.index(st.session_state.lunch_end))
 
+st.sidebar.subheader("Días de la semana")
+st.session_state.selected_days = st.sidebar.multiselect("Seleccionar días", DAYS, default=st.session_state.selected_days)
+autosave()
+
+# Clear options
 with st.sidebar.expander("🗑️ Borrar Citas"):
     buyer_to_clear = st.selectbox("Seleccionar Buyer para borrar", [""] + st.session_state.buyers)
     if st.button("Borrar citas de Buyer") and buyer_to_clear:
@@ -102,16 +108,16 @@ with st.sidebar.expander("🗑️ Borrar Citas"):
         autosave()
         st.success(f"Citas de {client_to_clear} eliminadas.")
     st.markdown("---")
-    st.markdown("### Borrar por Día")
-    day_to_clear = st.selectbox("Seleccionar día", DAYS)
+    day_to_clear = st.selectbox("Seleccionar día", st.session_state.selected_days or DAYS)
     confirm_clear = st.checkbox("Confirmar eliminación de todas las citas de este día")
     if st.button("Borrar citas del día seleccionado") and confirm_clear:
         st.session_state.appointments = [a for a in st.session_state.appointments if a[2] != day_to_clear]
         autosave()
         st.success(f"Todas las citas de {day_to_clear} eliminadas.")
 
-# Tabs
+# Tabs for scheduling
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
+
 with tab_random:
     st.subheader("🎲 Generar citas aleatorias")
     selected_buyers = []
@@ -163,7 +169,7 @@ with tab_manual:
         buyer_manual = st.selectbox("Buyer", st.session_state.buyers, key="buyer_manual")
         client_manual = st.selectbox("Client", st.session_state.clients, key="client_manual")
     with col_right:
-        dia_manual = st.selectbox("Día", DAYS, key="dia_manual")
+        dia_manual = st.selectbox("Día", st.session_state.selected_days or DAYS, key="dia_manual")
         hora_manual = st.selectbox("Hora", [h for h in HOURS if HOURS.index(st.session_state.start_hour) <= HOURS.index(h) < HOURS.index(st.session_state.end_hour)], key="hora_manual")
         if st.button("Agendar cita manual"):
             if is_in_lunch_break(hora_manual):
@@ -179,10 +185,10 @@ with tab_manual:
                     autosave()
                     st.success("Cita agendada exitosamente.")
 
+# Edit section
 with st.expander("✏️ Editar Citas"):
     if st.session_state.appointments:
-        def sort_key(a):
-            return (DAYS.index(a[2]), HOURS.index(a[3]), a[1], a[0])
+        def sort_key(a): return (DAYS.index(a[2]), HOURS.index(a[3]), a[1], a[0])
         sorted_appts = sorted(st.session_state.appointments, key=sort_key)
         options = []
         last_day = None
@@ -196,11 +202,12 @@ with st.expander("✏️ Editar Citas"):
     else:
         st.info("No hay citas para editar.")
 
+# Calendar
 st.markdown("---")
 st.subheader("📅 Calendario semanal de citas")
 if st.session_state.appointments:
     table_data = []
-    for day in DAYS:
+    for day in st.session_state.selected_days or DAYS:
         row = {"Hora": day}
         day_appointments = [(c, b, d, t) for (c, b, d, t) in st.session_state.appointments if d == day]
         for time in HOURS:
@@ -213,6 +220,7 @@ if st.session_state.appointments:
 else:
     st.info("No hay citas programadas aún.")
 
+# Excel styling
 def style_excel(workbook, lunch_start, lunch_end):
     thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
     blue_fill = PatternFill(start_color="305496", end_color="305496", fill_type="solid")
@@ -228,21 +236,20 @@ def style_excel(workbook, lunch_start, lunch_end):
             for cell in row:
                 cell.alignment = center_align
                 cell.border = thin_border
-                # Header row styling
                 if row_idx == 1:
                     cell.fill = blue_fill
                     cell.font = white_font
-                # Lunch break row grey-out (skip header)
                 if row_idx > 1:
                     time_cell = sheet.cell(row=row_idx, column=1).value
                     if isinstance(time_cell, str) and lunch_start <= time_cell < lunch_end:
                         cell.fill = grey_fill
 
+# Excel export
 def export_schedule():
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         for entity_type in ["Buyers", "Clients"]:
-            for day in DAYS:
+            for day in st.session_state.selected_days or DAYS:
                 cols = st.session_state.buyers if entity_type=="Buyers" else st.session_state.clients
                 df_entity = pd.DataFrame(index=[h for h in HOURS if HOURS.index(st.session_state.start_hour) <= HOURS.index(h) < HOURS.index(st.session_state.end_hour)], columns=cols)
                 for (c,b,d,t) in st.session_state.appointments:
