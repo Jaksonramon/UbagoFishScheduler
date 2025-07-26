@@ -1,56 +1,36 @@
 
-body {{
-    background-color: {bg_color};
-    color: {text_color};
-}}
-.main {{
-    background-color: {bg_color};
-    font-family: 'Nunito', sans-serif;
-    color: {text_color};
-}}
-section[data-testid="stSidebar"] {{
-    background-color: {sidebar_color};
-}}
-h1, h2, h3, h4, h5, h6 {{
-    color: {header_color};
-}}
-/* Card styling */
-.card {{
-    background-color: {card_color};
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}}
-/* Buttons */
-div.stButton > button:first-child {{
-    border-radius: 8px;
+body, .stApp {
+    background-color: #1e1e1e;
+    color: #e6e6e6;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+[data-testid="stSidebar"] {
+    background-color: #2b2b2b;
+    color: #f2f2f2;
+    font-weight: 500;
+}
+.stButton>button {
+    border: 1px solid #f2f2f2;
+    color: #f2f2f2;
+    background: transparent;
     padding: 0.5rem 1rem;
-    font-weight: 600;
-    background-color: #4DB8FF;
-    color: white;
-    border: none;
-}}
-div.stButton > button:first-child:hover {{
-    background-color: #2A9ED3;
-}}
-/* Table styling */
-.dataframe {{
+    border-radius: 5px;
+    font-size: 14px;
+}
+.stButton>button:hover {
+    background: #444444;
+    border-color: #ffffff;
+}
+[data-testid="stDataFrame"] table {
+    border-collapse: collapse;
+    color: #f0f0f0;
+    background-color: #2b2b2b;
     font-size: 13px;
-    border-radius: 6px;
-    overflow: hidden;
-    color: {text_color};
-}}
-.dataframe thead th {{
-    background: #4DB8FF;
-    color: white;
-    font-weight: bold;
-    position: sticky;
-    top: 0;
-}}
-.dataframe tbody tr:nth-child(even) {{
-    background-color: {alt_row_color};
-}}
-.dataframe tbody tr:hover {{
-    background-color: {hover_color} !important;
-}}
+}
+[data-testid="stDataFrame"] tr:nth-child(even) { background-color: #3a3a3a; }
+[data-testid="stDataFrame"] tr:nth-child(odd) { background-color: #2b2b2b; }
+[data-testid="stDataFrame"] th {
+    background-color: #444444;
+    color: #ffffff;
+    text-align: center;
+}
