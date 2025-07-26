@@ -1,15 +1,24 @@
-/* Sidebar adjustments */
-section[data-testid="stSidebar"] {
-    background-color: #F1F5F9 !important;  /* Light grey background */
-    color: #1E293B !important;  /* Dark text */
+/* Global background and text */
+body {
+    background-color: #F1F5F9 !important;
+    color: #1E293B !important;
+}
+.main {
+    background-color: #F1F5F9 !important;
+    font-family: 'Nunito', sans-serif;
+    color: #1E293B !important;
 }
 
-/* Sidebar headers and labels */
+/* Sidebar background and text */
+section[data-testid="stSidebar"] {
+    background-color: #F1F5F9 !important;
+    color: #1E293B !important;
+}
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3,
 section[data-testid="stSidebar"] label {
-    color: #1E293B !important;  /* Dark grey text */
+    color: #1E293B !important;
 }
 
 /* Sidebar buttons - solid dark style */
@@ -22,8 +31,27 @@ section[data-testid="stSidebar"] div.stButton > button:first-child {
     font-weight: 600;
     transition: all 0.2s ease-in-out;
 }
-
 section[data-testid="stSidebar"] div.stButton > button:first-child:hover {
-    background-color: #334155 !important;  /* Slightly lighter on hover */
+    background-color: #334155 !important;
 }
 
+/* Table styles */
+.dataframe {
+    font-size: 13px;
+    border-radius: 6px;
+    overflow: hidden;
+    color: #1E293B;
+}
+.dataframe thead th {
+    background: #4DB8FF;
+    color: white;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+.dataframe tbody tr:nth-child(even) {
+    background-color: #E2E8F0;
+}
+.dataframe tbody tr:hover {
+    background-color: #CBD5E1 !important;
+}
