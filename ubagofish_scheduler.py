@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.3 – Clean Randomizer (No clearing, compact scheduling)")
+st.caption("Version 2.3 – Clean Randomizer + Clear Options + Day Hours Selector")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -80,17 +80,32 @@ st.session_state.clients = [c.strip() for c in clients_input.splitlines() if c.s
 if st.sidebar.button("Guardar nombres"):
     autosave(); st.sidebar.success("Nombres guardados.")
 
-st.sidebar.subheader("Horario")
-st.session_state.start_hour = st.sidebar.selectbox("Inicio del día", HOURS, index=HOURS.index(st.session_state.start_hour))
-st.session_state.end_hour = st.sidebar.selectbox("Fin del día", HOURS, index=HOURS.index(st.session_state.end_hour))
-st.sidebar.subheader("Lunch")
-st.session_state.lunch_start = st.sidebar.selectbox("Inicio", HOURS, index=HOURS.index(st.session_state.lunch_start))
-st.session_state.lunch_end = st.sidebar.selectbox("Fin", HOURS, index=HOURS.index(st.session_state.lunch_end))
-st.sidebar.subheader("Días de la semana")
-st.session_state.selected_days = st.sidebar.multiselect("Seleccionar días", DAYS, default=st.session_state.selected_days)
-autosave()
+# Start and End of Day selectors
+st.sidebar.subheader("Horario del Día")
+st.session_state.start_hour = st.sidebar.selectbox("Inicio del Día", HOURS, index=HOURS.index(st.session_state.start_hour))
+st.session_state.end_hour = st.sidebar.selectbox("Fin del Día", HOURS, index=HOURS.index(st.session_state.end_hour))
 
-# Tabs
+# Clear appointments expander
+with st.sidebar.expander("🗑️ Borrar Citas"):
+    if st.button("Borrar todas las citas"):
+        st.session_state.appointments=[]; st.session_state.locked_manual.clear(); autosave(); st.success("Todas las citas borradas.")
+    day_to_clear = st.selectbox("Borrar por Día", [""]+DAYS)
+    if st.button("Borrar citas por Día") and day_to_clear:
+        st.session_state.appointments=[a for a in st.session_state.appointments if a[2]!=day_to_clear]
+        st.session_state.locked_manual={a for a in st.session_state.locked_manual if a[2]!=day_to_clear}
+        autosave(); st.success(f"Citas de {day_to_clear} borradas.")
+    buyer_to_clear = st.selectbox("Borrar por Buyer", [""]+st.session_state.buyers)
+    if st.button("Borrar citas por Buyer") and buyer_to_clear:
+        st.session_state.appointments=[a for a in st.session_state.appointments if a[1]!=buyer_to_clear]
+        st.session_state.locked_manual={a for a in st.session_state.locked_manual if a[1]!=buyer_to_clear}
+        autosave(); st.success(f"Citas de {buyer_to_clear} borradas.")
+    client_to_clear = st.selectbox("Borrar por Client", [""]+st.session_state.clients)
+    if st.button("Borrar citas por Client") and client_to_clear:
+        st.session_state.appointments=[a for a in st.session_state.appointments if a[0]!=client_to_clear]
+        st.session_state.locked_manual={a for a in st.session_state.locked_manual if a[0]!=client_to_clear}
+        autosave(); st.success(f"Citas de {client_to_clear} borradas.")
+
+# Tabs for scheduling
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
 
 with tab_random:
