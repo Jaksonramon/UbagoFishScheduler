@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.3 – Calendar Fix + All Features")
+st.caption("Version 2.3 – Calendar Fix + Lunch Break Controls + All Features")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -88,6 +88,11 @@ st.session_state.selected_days = st.sidebar.multiselect("Días para programar", 
 st.sidebar.subheader("Horario del Día")
 st.session_state.start_hour = st.sidebar.selectbox("Inicio del Día", HOURS, index=HOURS.index(st.session_state.start_hour))
 st.session_state.end_hour = st.sidebar.selectbox("Fin del Día", HOURS, index=HOURS.index(st.session_state.end_hour))
+
+# Lunch Break selectors
+st.sidebar.subheader("Horario de Almuerzo")
+st.session_state.lunch_start = st.sidebar.selectbox("Inicio del Almuerzo", HOURS, index=HOURS.index(st.session_state.lunch_start))
+st.session_state.lunch_end = st.sidebar.selectbox("Fin del Almuerzo", HOURS, index=HOURS.index(st.session_state.lunch_end))
 
 # Clear appointments expander
 with st.sidebar.expander("🗑️ Borrar Citas"):
