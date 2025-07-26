@@ -9,19 +9,19 @@ body {
     color: #1E293B !important;
 }
 
-/* Sidebar background and text */
+/* Headings and labels (main + sidebar) */
+h1, h2, h3, h4, h5, h6, label, p {
+    color: #1E293B !important;
+}
+
+/* Sidebar background */
 section[data-testid="stSidebar"] {
     background-color: #F1F5F9 !important;
     color: #1E293B !important;
 }
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3,
-section[data-testid="stSidebar"] label {
-    color: #1E293B !important;
-}
 
-/* Sidebar buttons - solid dark style */
+/* Buttons (main + sidebar) */
+div.stButton > button:first-child,
 section[data-testid="stSidebar"] div.stButton > button:first-child {
     background-color: #1E293B !important;
     color: #F8FAFC !important;
@@ -31,6 +31,7 @@ section[data-testid="stSidebar"] div.stButton > button:first-child {
     font-weight: 600;
     transition: all 0.2s ease-in-out;
 }
+div.stButton > button:first-child:hover,
 section[data-testid="stSidebar"] div.stButton > button:first-child:hover {
     background-color: #334155 !important;
 }
@@ -41,6 +42,7 @@ section[data-testid="stSidebar"] div.stButton > button:first-child:hover {
     border-radius: 6px;
     overflow: hidden;
     color: #1E293B;
+    background-color: #F1F5F9;
 }
 .dataframe thead th {
     background: #4DB8FF;
