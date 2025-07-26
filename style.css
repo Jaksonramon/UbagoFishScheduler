@@ -1,54 +1,29 @@
-body {
-    background-color: #1E293B;
-    color: #FFFFFF;
-}
-.main {
-    background-color: #1E293B;
-    font-family: 'Nunito', sans-serif;
-    color: #FFFFFF;
-}
+/* Sidebar adjustments */
 section[data-testid="stSidebar"] {
-    background-color: #1E293B;
+    background-color: #F1F5F9 !important;  /* Light grey background */
+    color: #1E293B !important;  /* Dark text */
 }
-h1, h2, h3, h4, h5, h6 {
-    color: #F8FAFC;
+
+/* Sidebar headers and labels */
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] label {
+    color: #1E293B !important;  /* Dark grey text */
 }
-.card {
-    background-color: #334155;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-div.stButton > button:first-child {
+
+/* Sidebar buttons - solid dark style */
+section[data-testid="stSidebar"] div.stButton > button:first-child {
+    background-color: #1E293B !important;
+    color: #F8FAFC !important;
     border-radius: 8px;
     padding: 0.5rem 1rem;
+    border: none;
     font-weight: 600;
-    background-color: transparent;
-    color: #FFFFFF;
-    border: 1px solid #94A3B8;
     transition: all 0.2s ease-in-out;
 }
-div.stButton > button:first-child:hover {
-    border-color: #CBD5E1;
-    color: #E2E8F0;
+
+section[data-testid="stSidebar"] div.stButton > button:first-child:hover {
+    background-color: #334155 !important;  /* Slightly lighter on hover */
 }
-.dataframe {
-    font-size: 13px;
-    border-radius: 6px;
-    overflow: hidden;
-    color: #FFFFFF;
-}
-.dataframe thead th {
-    background: #4DB8FF;
-    color: white;
-    font-weight: bold;
-    position: sticky;
-    top: 0;
-}
-.dataframe tbody tr:nth-child(even) {
-    background-color: #334155;
-}
-.dataframe tbody tr:hover {
-    background-color: #475569 !important;
-}
+
