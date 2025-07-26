@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.3 – Clean Randomizer + Clear Options + Day & Hours Selectors")
+st.caption("Version 2.3 – Calendar Fix + All Features")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -202,7 +202,7 @@ with tab_manual:
 # Calendar view
 st.markdown("---")
 st.subheader("📅 Calendario")
-if st.session_state.appointments:
+if st.session_state.appointments and st.session_state.selected_days:
     table_data=[]
     for d in st.session_state.selected_days:
         row={"Hora":d}
@@ -217,10 +217,14 @@ if st.session_state.appointments:
                     cell.append(label)
             row[t]="; ".join(cell)
         table_data.append(row)
-    df=pd.DataFrame(table_data).set_index("Hora").T
-    df=df.loc[df.index[(df.index>=st.session_state.start_hour)&(df.index<st.session_state.end_hour)]]
-    st.dataframe(df,use_container_width=True)
-else: st.info("No hay citas.")
+    if table_data:
+        df=pd.DataFrame(table_data).set_index("Hora").T
+        df=df.loc[df.index[(df.index>=st.session_state.start_hour)&(df.index<st.session_state.end_hour)]]
+        st.dataframe(df,use_container_width=True)
+    else:
+        st.info("No hay citas para mostrar.")
+else:
+    st.info("No hay citas.")
 
 # Excel export styling
 def style_excel(workbook,lunch_start,lunch_end):
