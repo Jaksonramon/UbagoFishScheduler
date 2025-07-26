@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.0 – Smart Randomizer + Time Windows")
+st.caption("Version 2.1 – Flexible Randomizer Day Selector + Detailed Summary")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -120,7 +120,7 @@ with st.sidebar.expander("🗑️ Borrar Citas"):
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
 
 with tab_random:
-    st.subheader("🎲 Generar y Optimizar Citas (con ventanas horarias)")
+    st.subheader("🎲 Generar y Optimizar Citas")
     selected_buyers = []
     col1, col2 = st.columns([1,1])
     with col1:
@@ -144,39 +144,50 @@ with tab_random:
             st.session_state.time_windows[buyer][day] = {"start": start, "end": end}
 
     interval = st.selectbox("Duración de la cita (min)", [30, 60])
+    days_to_randomize = st.multiselect("Seleccionar días para esta corrida", st.session_state.selected_days, default=st.session_state.selected_days)
 
     if st.button("🔀 Generar y Optimizar Citas"):
         manual_appts = list(st.session_state.locked_manual)
         random_appts = [(c,b,d,t) for (c,b,d,t) in st.session_state.appointments if (c,b,d,t) not in st.session_state.locked_manual]
         for buyer in selected_buyers:
             for client in selected_clients:
-                for day in st.session_state.selected_days:
+                for day in days_to_randomize:
                     random_appts.append((client,buyer,day,None))
+
         st.session_state.appointments = manual_appts.copy()
         moved_appts, skipped = [], []
+        day_summary = {d: {"added":0, "moved":0, "skipped":0} for d in days_to_randomize}
+
         for buyer in selected_buyers:
-            for day in st.session_state.selected_days:
+            for day in days_to_randomize:
                 appts = [(c,buyer,day,t) for (c,b,d,t) in random_appts if b==buyer and d==day]
                 if not appts: continue
                 start = st.session_state.time_windows.get(buyer,{}).get(day,{}).get("start", st.session_state.start_hour)
                 end = st.session_state.time_windows.get(buyer,{}).get(day,{}).get("end", st.session_state.end_hour)
                 slots = get_time_slots(start,end,interval)
                 slots.sort(key=lambda h: HOURS.index(h))
-                for idx,(c,b,d,t) in enumerate(appts):
+                for (c,b,d,t) in appts:
                     assigned = False
                     for slot in slots:
                         if is_slot_free(c,buyer,day,slot):
                             new_t = slot
-                            if t is not None and t != new_t:
+                            if t is None:
+                                day_summary[day]["added"] += 1
+                            elif t != new_t:
                                 moved_appts.append((c,buyer,day,new_t))
+                                day_summary[day]["moved"] += 1
                             st.session_state.appointments.append((c,buyer,day,new_t))
                             slots.remove(slot)
                             assigned = True
                             break
                     if not assigned:
                         skipped.append((c,buyer,day))
+                        day_summary[day]["skipped"] += 1
         autosave()
-        st.success(f"Citas optimizadas. {len(moved_appts)} movidas, {len(skipped)} no pudieron agendarse por restricciones.")
+
+        # Display per-day summary
+        summary_lines = [f"**{d}**: {v['added']} nuevas, {v['moved']} movidas, {v['skipped']} sin espacio" for d,v in day_summary.items()]
+        st.success("Citas optimizadas.\n" + "\n".join(summary_lines))
 
 with tab_manual:
     st.subheader("📝 Agendar Manualmente (Bloqueadas)")
@@ -226,7 +237,7 @@ if st.session_state.appointments:
 else:
     st.info("No hay citas programadas aún.")
 
-# Excel export (same as before)
+# Excel export
 def style_excel(workbook,lunch_start,lunch_end):
     thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
     blue_fill = PatternFill(start_color="305496", end_color="305496", fill_type="solid")
