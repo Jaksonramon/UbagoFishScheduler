@@ -99,6 +99,15 @@ with st.sidebar:
             autosave()
             st.warning(f"Citas de {client_clear} eliminadas.")
 
+
+        st.markdown("---")
+        st.markdown("### Borrar por Día")
+        day_to_clear = st.selectbox("Seleccionar día", DAYS)
+        confirm_clear = st.checkbox("Confirmar eliminación de todas las citas de este día")
+        if st.button("Borrar citas del día seleccionado") and confirm_clear:
+            st.session_state.appointments = [a for a in st.session_state.appointments if a[2] != day_to_clear]
+            autosave()
+            st.success(f"Todas las citas de {day_to_clear} han sido eliminadas.")
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "✏️ Agendar Manualmente"])
 
 with tab_random:
