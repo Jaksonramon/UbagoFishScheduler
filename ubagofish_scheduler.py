@@ -7,13 +7,13 @@ from random import choice
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
-st.set_page_config(page_title="UbagoFish Scheduler v1.4", layout="wide")
+st.set_page_config(page_title="UbagoFish Scheduler v1.6", layout="wide")
 
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.4 – Light Grey Theme, Export, Editing, Clearing (Safe Totals Row)")
+st.caption("Version 1.6 – Back-to-Back Scheduling, Full Features")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -60,6 +60,13 @@ load_data()
 lunch_start_idx, lunch_end_idx = HOURS.index(st.session_state.lunch_start), HOURS.index(st.session_state.lunch_end)
 def is_in_lunch_break(t): return lunch_start_idx <= HOURS.index(t) < lunch_end_idx
 st.session_state.appointments = [a for a in st.session_state.appointments if not is_in_lunch_break(a[3])]
+
+def is_slot_free(client, buyer, day, time):
+    for c, b, d, t in st.session_state.appointments:
+        if d == day and t == time:
+            if b == buyer or c == client:
+                return False
+    return True
 
 with st.sidebar:
     st.header("Buyers & Clients")
@@ -127,15 +134,12 @@ with tab_random:
                 for day in st.session_state.selected_days:
                     start = st.session_state.time_windows.get(buyer, {}).get(day, {}).get("start", st.session_state.start_hour)
                     end = st.session_state.time_windows.get(buyer, {}).get(day, {}).get("end", st.session_state.end_hour)
-                    slots = [h for h in HOURS[HOURS.index(start):HOURS.index(end)] if not is_in_lunch_break(h) and HOURS.index(h) % (interval//30)==0]
-                    attempts = 0
-                    while attempts < 5 and slots:
-                        t = choice(slots)
-                        if (client,buyer,day,t) not in st.session_state.appointments:
+                    slots = sorted([h for h in HOURS[HOURS.index(start):HOURS.index(end)] if not is_in_lunch_break(h) and HOURS.index(h) % (interval//30)==0], key=lambda x: HOURS.index(x))
+                    for t in slots:
+                        if is_slot_free(client,buyer,day,t):
                             st.session_state.appointments.append((client,buyer,day,t))
                             break
-                        attempts += 1
-        autosave(); st.success("Citas generadas (sin borrar citas previas).")
+        autosave(); st.success("Citas generadas (sin conflictos, priorizando bloques consecutivos).")
 
 with tab_manual:
     st.subheader("✏️ Agendar Manualmente")
@@ -145,6 +149,7 @@ with tab_manual:
     hora_manual = st.selectbox("Hora", [h for h in HOURS if HOURS.index(st.session_state.start_hour) <= HOURS.index(h) < HOURS.index(st.session_state.end_hour)], key="hora_manual")
     if st.button("Agendar cita manual"):
         if is_in_lunch_break(hora_manual): st.warning("No se pueden agendar durante el almuerzo.")
+        elif not is_slot_free(client_manual,buyer_manual,dia_manual,hora_manual): st.warning("El Buyer o Client ya tiene cita a esa hora.")
         else:
             appt = (client_manual,buyer_manual,dia_manual,hora_manual)
             if appt in st.session_state.appointments: st.warning("Esta cita ya está agendada.")
@@ -165,11 +170,9 @@ if st.session_state.appointments:
     st.dataframe(df, use_container_width=True)
 else: st.info("No hay citas programadas aún.")
 
-# --- Export to Excel ---
 if st.button("📤 Exportar a Excel"):
     df_all = pd.DataFrame(st.session_state.appointments, columns=["Client","Buyer","Día","Hora"])
     output = BytesIO()
-
     def style_ws(ws):
         header_fill=PatternFill("solid",fgColor="305496")
         header_font=Font(color="FFFFFF",bold=True,name="Calibri",size=11)
@@ -186,7 +189,6 @@ if st.button("📤 Exportar a Excel"):
         for col in ws.columns:
             max_len=max(len(str(c.value)) if c.value else 0 for c in col)
             ws.column_dimensions[col[0].column_letter].width=max_len+2
-
     with pd.ExcelWriter(output,engine="openpyxl") as writer:
         times=HOURS[HOURS.index(st.session_state.start_hour):HOURS.index(st.session_state.end_hour)]
         for day in df_all["Día"].unique():
@@ -196,52 +198,44 @@ if st.button("📤 Exportar a Excel"):
                 df_clients[client]=["LUNCH BREAK" if is_in_lunch_break(t) else ", ".join(c_appts[c_appts["Hora"]==t]["Buyer"]) for t in times]
             totals=[df_all[(df_all["Client"]==c)&(df_all["Día"]==day)].shape[0] for c in st.session_state.clients]
             totals_row=["TOTAL"]+totals
-            while len(totals_row) < len(df_clients.columns):
-                totals_row.append(0)
+            while len(totals_row)<len(df_clients.columns): totals_row.append(0)
             totals_row=totals_row[:len(df_clients.columns)]
             df_clients.loc[-1]=totals_row; df_clients.index+=1; df_clients=df_clients.sort_index()
             df_clients.to_excel(writer,sheet_name=f"Clients_{day}",index=False)
-
             df_buyers=pd.DataFrame({"Time":times})
             for buyer in st.session_state.buyers:
                 b_appts=df_all[(df_all["Buyer"]==buyer)&(df_all["Día"]==day)]
                 df_buyers[buyer]=["LUNCH BREAK" if is_in_lunch_break(t) else ", ".join(b_appts[b_appts["Hora"]==t]["Client"]) for t in times]
             totals_b=[df_all[(df_all["Buyer"]==b)&(df_all["Día"]==day)].shape[0] for b in st.session_state.buyers]
             totals_row_b=["TOTAL"]+totals_b
-            while len(totals_row_b) < len(df_buyers.columns):
-                totals_row_b.append(0)
+            while len(totals_row_b)<len(df_buyers.columns): totals_row_b.append(0)
             totals_row_b=totals_row_b[:len(df_buyers.columns)]
             df_buyers.loc[-1]=totals_row_b; df_buyers.index+=1; df_buyers=df_buyers.sort_index()
             df_buyers.to_excel(writer,sheet_name=f"Buyers_{day}",index=False)
-
         df_all["Count"]=1
         df_all.groupby("Client")["Count"].sum().reset_index().to_excel(writer,sheet_name="Summary_Clients",index=False)
         df_all.groupby("Buyer")["Count"].sum().reset_index().to_excel(writer,sheet_name="Summary_Buyers",index=False)
-
     output.seek(0)
     wb=load_workbook(output)
     for ws in wb.worksheets: style_ws(ws)
     final=BytesIO(); wb.save(final); final.seek(0)
-    st.download_button("Descargar Horario Completo", data=final, file_name="UbagoFish_Schedule_v14.xlsx",
+    st.download_button("Descargar Horario Completo",data=final,file_name="UbagoFish_Schedule_v16.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 with st.expander("🔧 Editar Citas", expanded=st.session_state.edit_expander_open):
-    st.session_state.edit_expander_open = True
+    st.session_state.edit_expander_open=True
     if st.session_state.appointments:
-        options = [f"{c} con {b} ({d} {h})" for c,b,d,h in st.session_state.appointments]
-        sel = st.selectbox("Seleccionar cita para editar", options)
+        options=[f"{c} con {b} ({d} {h})" for c,b,d,h in st.session_state.appointments]
+        sel=st.selectbox("Seleccionar cita para editar", options)
         if sel:
-            idx = options.index(sel)
-            c,b,d,h = st.session_state.appointments[idx]
-            new_b = st.selectbox("Nuevo Buyer", st.session_state.buyers, index=st.session_state.buyers.index(b))
-            new_c = st.selectbox("Nuevo Client", st.session_state.clients, index=st.session_state.clients.index(c))
-            new_d = st.selectbox("Nuevo Día", DAYS, index=DAYS.index(d))
-            new_h = st.selectbox("Nueva Hora", HOURS, index=HOURS.index(h))
+            idx=options.index(sel)
+            c,b,d,h=st.session_state.appointments[idx]
+            new_b=st.selectbox("Nuevo Buyer", st.session_state.buyers, index=st.session_state.buyers.index(b))
+            new_c=st.selectbox("Nuevo Client", st.session_state.clients, index=st.session_state.clients.index(c))
+            new_d=st.selectbox("Nuevo Día", DAYS, index=DAYS.index(d))
+            new_h=st.selectbox("Nueva Hora", HOURS, index=HOURS.index(h))
             if st.button("Guardar cambios"):
                 if is_in_lunch_break(new_h): st.warning("No se pueden agendar durante el almuerzo.")
+                elif not is_slot_free(new_c,new_b,new_d,new_h): st.warning("El Buyer o Client ya tiene cita a esa hora.")
                 else:
-                    new_appt=(new_c,new_b,new_d,new_h)
-                    if new_appt in st.session_state.appointments and new_appt!=st.session_state.appointments[idx]:
-                        st.warning("Ya existe una cita igual.")
-                    else:
-                        st.session_state.appointments[idx]=new_appt; autosave(); st.success("Cita editada.")
+                    st.session_state.appointments[idx]=(new_c,new_b,new_d,new_h); autosave(); st.success("Cita editada.")
