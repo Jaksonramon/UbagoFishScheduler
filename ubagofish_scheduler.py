@@ -99,20 +99,10 @@ with st.sidebar:
             autosave()
             st.warning(f"Citas de {client_clear} eliminadas.")
 
-
-    with st.expander("🗑️ Borrar Citas por Día"):
-        day_to_clear = st.selectbox("Seleccionar día", DAYS)
-        confirm_clear = st.checkbox("Confirmar eliminación de todas las citas de este día")
-        if st.button("Borrar citas del día seleccionado") and confirm_clear:
-            st.session_state.appointments = [a for a in st.session_state.appointments if a[2] != day_to_clear]
-            autosave()
-            st.success(f"Todas las citas de {day_to_clear} han sido eliminadas.")
-
-    tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "✏️ Agendar Manualmente"])
+tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "✏️ Agendar Manualmente"])
 
 with tab_random:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown("<h3>🎲 Generar citas aleatorias</h3>", unsafe_allow_html=True)
+    st.subheader("🎲 Generar citas aleatorias")
     selected_buyers = []
     col1, col2 = st.columns([1,1])
     with col1:
@@ -151,17 +141,10 @@ with tab_random:
                             break
         autosave(); st.success("Citas generadas (sin conflictos, priorizando bloques consecutivos).")
 
-st.markdown('</div>', unsafe_allow_html=True)
-
 with tab_manual:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown("<h3>✏️ Agendar Manualmente</h3>", unsafe_allow_html=True)
-    
-col_left, col_right = st.columns([1,1])
-with col_left:
+    st.subheader("✏️ Agendar Manualmente")
     buyer_manual = st.selectbox("Buyer", st.session_state.buyers, key="buyer_manual")
     client_manual = st.selectbox("Client", st.session_state.clients, key="client_manual")
-with col_right:
     dia_manual = st.selectbox("Día", DAYS, key="dia_manual")
     hora_manual = st.selectbox("Hora", [h for h in HOURS if HOURS.index(st.session_state.start_hour) <= HOURS.index(h) < HOURS.index(st.session_state.end_hour)], key="hora_manual")
     if st.button("Agendar cita manual"):
@@ -172,8 +155,6 @@ with col_right:
             if appt in st.session_state.appointments: st.warning("Esta cita ya está agendada.")
             else:
                 st.session_state.appointments.append(appt); autosave(); st.success("Cita agendada exitosamente.")
-st.markdown("</div>", unsafe_allow_html=True)
-
 
 st.subheader("📅 Calendario de Citas")
 if st.session_state.appointments:
