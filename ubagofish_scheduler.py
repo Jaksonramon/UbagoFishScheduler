@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.3 – Final (Keeps All, Debug Summary)")
+st.caption("Version 2.3 – Clean Randomizer (No clearing, compact scheduling)")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -56,7 +56,6 @@ def save_data():
         }, f)
 
 def autosave(): save_data()
-
 load_data()
 
 def is_in_lunch_break(time_str):
@@ -72,7 +71,7 @@ def get_time_slots(start,end,interval):
     start_idx, end_idx = HOURS.index(start), HOURS.index(end)
     return [h for h in HOURS[start_idx:end_idx] if not is_in_lunch_break(h) and HOURS.index(h) % (interval//30)==0]
 
-# Sidebar setup
+# Sidebar
 st.sidebar.header("Buyers & Clients")
 buyers_input = st.sidebar.text_area("Buyers (one per line)", "\n".join(st.session_state.buyers))
 st.session_state.buyers = [b.strip() for b in buyers_input.splitlines() if b.strip()]
@@ -91,7 +90,7 @@ st.sidebar.subheader("Días de la semana")
 st.session_state.selected_days = st.sidebar.multiselect("Seleccionar días", DAYS, default=st.session_state.selected_days)
 autosave()
 
-# Tabs for scheduling
+# Tabs
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
 
 with tab_random:
@@ -106,6 +105,7 @@ with tab_random:
         if st.button("➕ Agregar otro Buyer"): st.session_state.buyers_random.append("")
     with col2:
         selected_clients = st.multiselect("Seleccionar Clients", st.session_state.clients)
+
     for buyer in selected_buyers:
         st.session_state.time_windows.setdefault(buyer, {})
         for day in st.session_state.selected_days:
@@ -115,21 +115,21 @@ with tab_random:
             with c2:
                 end = st.selectbox(f"{buyer}-{day} hasta", HOURS, key=f"{buyer}_{day}_end", index=HOURS.index(st.session_state.time_windows.get(buyer,{}).get(day,{}).get("end", st.session_state.end_hour)))
             st.session_state.time_windows[buyer][day] = {"start": start, "end": end}
+
     interval = st.selectbox("Duración cita (min)", [30,60])
     days_run = st.multiselect("Días para esta corrida", st.session_state.selected_days, default=st.session_state.selected_days)
+
     if st.button("🔀 Optimizar Todo"):
-        manual_appts = list(st.session_state.locked_manual)
-        # Keep all existing random appointments + add new ones
         all_random = [(c,b,d,t) for (c,b,d,t) in st.session_state.appointments if (c,b,d,t) not in st.session_state.locked_manual]
         for b in selected_buyers:
             for c in selected_clients:
                 for d in days_run:
                     all_random.append((c,b,d,None))
-        # Don't clear old randoms; we rebuild them below
-        st.session_state.appointments = manual_appts.copy()
+
         st.session_state.moved = []
         skipped=[]; st.session_state.skipped_list=[]
-        summary={d:{"added":0,"moved":0,"kept":0,"skipped":0} for d in days_run}
+        summary={d:{"kept":0,"added":0,"moved":0,"skipped":0} for d in days_run}
+
         for b in selected_buyers:
             for d in days_run:
                 appts=[(c,b,d,t) for (c,b2,d2,t) in all_random if b2==b and d2==d]
@@ -137,23 +137,24 @@ with tab_random:
                 end = st.session_state.time_windows.get(b,{}).get(d,{}).get("end", st.session_state.end_hour)
                 slots = get_time_slots(start,end,interval)
                 slots.sort(key=lambda h:HOURS.index(h))
+
                 for (c,b2,d2,t) in appts:
                     assigned=False
-                    # Prefer to keep old times if possible
                     if t and t in slots and is_slot_free(c,b,d,t):
-                        st.session_state.appointments.append((c,b,d,t))
-                        slots.remove(t)
                         summary[d]["kept"]+=1
-                        assigned=True
-                    else:
-                        for s in slots:
-                            if is_slot_free(c,b,d,s):
-                                if t and t!=s:
-                                    st.session_state.moved.append((c,b,d,s)); summary[d]["moved"]+=1
-                                elif t is None:
-                                    summary[d]["added"]+=1
-                                st.session_state.appointments.append((c,b,d,s))
-                                slots.remove(s); assigned=True; break
+                        slots.remove(t)
+                        continue
+                    for s in slots:
+                        if is_slot_free(c,b,d,s):
+                            if t and t!=s:
+                                st.session_state.moved.append((c,b,d,s)); summary[d]["moved"]+=1
+                            elif t is None:
+                                summary[d]["added"]+=1
+                            slots.remove(s); assigned=True
+                            for idx,(c0,b0,d0,t0) in enumerate(st.session_state.appointments):
+                                if (c0,b0,d0,t0)==(c,b,d,t): st.session_state.appointments[idx]=(c,b,d,s); break
+                            else: st.session_state.appointments.append((c,b,d,s))
+                            break
                     if not assigned:
                         skipped.append((c,b,d)); st.session_state.skipped_list.append((c,b,d))
                         summary[d]["skipped"]+=1
@@ -179,7 +180,7 @@ with tab_manual:
                     st.session_state.appointments.append(appt); st.session_state.locked_manual.add(appt)
                     autosave(); st.success("Cita manual agendada.")
 
-# Calendar
+# Calendar view
 st.markdown("---")
 st.subheader("📅 Calendario")
 if st.session_state.appointments:
@@ -202,7 +203,7 @@ if st.session_state.appointments:
     st.dataframe(df,use_container_width=True)
 else: st.info("No hay citas.")
 
-# Excel export
+# Excel export styling
 def style_excel(workbook,lunch_start,lunch_end):
     thin=Border(left=Side(style="thin"),right=Side(style="thin"),top=Side(style="thin"),bottom=Side(style="thin"))
     blue=PatternFill(start_color="305496",end_color="305496",fill_type="solid")
