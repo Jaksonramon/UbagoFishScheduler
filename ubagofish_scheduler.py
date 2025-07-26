@@ -13,7 +13,7 @@ with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.4 – Light Grey Theme, Export, Editing, Clearing (Totals Fix)")
+st.caption("Version 1.4 – Light Grey Theme, Export, Editing, Clearing (Safe Totals Row)")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -195,7 +195,10 @@ if st.button("📤 Exportar a Excel"):
                 c_appts=df_all[(df_all["Client"]==client)&(df_all["Día"]==day)]
                 df_clients[client]=["LUNCH BREAK" if is_in_lunch_break(t) else ", ".join(c_appts[c_appts["Hora"]==t]["Buyer"]) for t in times]
             totals=[df_all[(df_all["Client"]==c)&(df_all["Día"]==day)].shape[0] for c in st.session_state.clients]
-            totals_row=["TOTAL"]+totals if st.session_state.clients else ["TOTAL"]+[0]*(len(df_clients.columns)-1)
+            totals_row=["TOTAL"]+totals
+            while len(totals_row) < len(df_clients.columns):
+                totals_row.append(0)
+            totals_row=totals_row[:len(df_clients.columns)]
             df_clients.loc[-1]=totals_row; df_clients.index+=1; df_clients=df_clients.sort_index()
             df_clients.to_excel(writer,sheet_name=f"Clients_{day}",index=False)
 
@@ -204,7 +207,10 @@ if st.button("📤 Exportar a Excel"):
                 b_appts=df_all[(df_all["Buyer"]==buyer)&(df_all["Día"]==day)]
                 df_buyers[buyer]=["LUNCH BREAK" if is_in_lunch_break(t) else ", ".join(b_appts[b_appts["Hora"]==t]["Client"]) for t in times]
             totals_b=[df_all[(df_all["Buyer"]==b)&(df_all["Día"]==day)].shape[0] for b in st.session_state.buyers]
-            totals_row_b=["TOTAL"]+totals_b if st.session_state.buyers else ["TOTAL"]+[0]*(len(df_buyers.columns)-1)
+            totals_row_b=["TOTAL"]+totals_b
+            while len(totals_row_b) < len(df_buyers.columns):
+                totals_row_b.append(0)
+            totals_row_b=totals_row_b[:len(df_buyers.columns)]
             df_buyers.loc[-1]=totals_row_b; df_buyers.index+=1; df_buyers=df_buyers.sort_index()
             df_buyers.to_excel(writer,sheet_name=f"Buyers_{day}",index=False)
 
