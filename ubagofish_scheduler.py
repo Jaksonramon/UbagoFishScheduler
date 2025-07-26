@@ -9,7 +9,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.9 Styled – Full Excel Formatting Applied")
+st.caption("Version 1.9 – Excel Styled (Dark Blue Headers, Borders, Lunch Grey)")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0, 30)]
@@ -72,7 +72,7 @@ def get_next_available_slots(start, end, interval):
     start_idx, end_idx = HOURS.index(start), HOURS.index(end)
     return [h for h in HOURS[start_idx:end_idx] if not is_in_lunch_break(h) and HOURS.index(h) % (interval//30)==0]
 
-# Sidebar
+# Sidebar setup
 st.sidebar.header("Buyers & Clients")
 buyers_input = st.sidebar.text_area("Buyers (one per line)", "\n".join(st.session_state.buyers))
 st.session_state.buyers = [b.strip() for b in buyers_input.splitlines() if b.strip()]
@@ -96,13 +96,11 @@ with st.sidebar.expander("🗑️ Borrar Citas"):
         st.session_state.appointments = [a for a in st.session_state.appointments if a[1] != buyer_to_clear]
         autosave()
         st.success(f"Citas de {buyer_to_clear} eliminadas.")
-
     client_to_clear = st.selectbox("Seleccionar Client para borrar", [""] + st.session_state.clients)
     if st.button("Borrar citas de Client") and client_to_clear:
         st.session_state.appointments = [a for a in st.session_state.appointments if a[0] != client_to_clear]
         autosave()
         st.success(f"Citas de {client_to_clear} eliminadas.")
-
     st.markdown("---")
     st.markdown("### Borrar por Día")
     day_to_clear = st.selectbox("Seleccionar día", DAYS)
@@ -112,7 +110,7 @@ with st.sidebar.expander("🗑️ Borrar Citas"):
         autosave()
         st.success(f"Todas las citas de {day_to_clear} eliminadas.")
 
-# Tabs for scheduling
+# Tabs
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
 with tab_random:
     st.subheader("🎲 Generar citas aleatorias")
@@ -217,22 +215,28 @@ else:
 
 def style_excel(workbook, lunch_start, lunch_end):
     thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
-    grey_fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
-    bold_font = Font(bold=True)
+    blue_fill = PatternFill(start_color="305496", end_color="305496", fill_type="solid")
+    white_font = Font(color="FFFFFF", bold=True)
     center_align = Alignment(horizontal="center", vertical="center")
+    grey_fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
     for sheet in workbook.worksheets:
         sheet.freeze_panes = "B2"
         for col in sheet.columns:
             max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
             sheet.column_dimensions[col[0].column_letter].width = max_length + 2
-        for row in sheet.iter_rows():
+        for row_idx, row in enumerate(sheet.iter_rows(), start=1):
             for cell in row:
                 cell.alignment = center_align
                 cell.border = thin_border
-                if cell.row == 1 or cell.row == 2:
-                    cell.font = bold_font
-                if str(cell.value) in [lunch_start, lunch_end] or (cell.row > 2 and lunch_start <= str(sheet.cell(row=cell.row, column=1).value) < lunch_end):
-                    cell.fill = grey_fill
+                # Header row styling
+                if row_idx == 1:
+                    cell.fill = blue_fill
+                    cell.font = white_font
+                # Lunch break row grey-out (skip header)
+                if row_idx > 1:
+                    time_cell = sheet.cell(row=row_idx, column=1).value
+                    if isinstance(time_cell, str) and lunch_start <= time_cell < lunch_end:
+                        cell.fill = grey_fill
 
 def export_schedule():
     output = BytesIO()
