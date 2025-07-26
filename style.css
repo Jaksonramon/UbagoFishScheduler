@@ -23,8 +23,8 @@ section[data-testid="stSidebar"] {
 /* Buttons (main + sidebar) */
 div.stButton > button:first-child,
 section[data-testid="stSidebar"] div.stButton > button:first-child {
-    background-color: #c5cado !important;
-    color: #dcdcdc !important;
+    background-color: #dcdcdc !important;
+    color: #000000 !important;
     border-radius: 8px;
     padding: 0.5rem 1rem;
     border: none;
