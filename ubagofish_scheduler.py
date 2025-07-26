@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.3 – Final (keeps all, minimal reshuffle)")
+st.caption("Version 2.3 – Final (Keeps All, Debug Summary)")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -72,7 +72,7 @@ def get_time_slots(start,end,interval):
     start_idx, end_idx = HOURS.index(start), HOURS.index(end)
     return [h for h in HOURS[start_idx:end_idx] if not is_in_lunch_break(h) and HOURS.index(h) % (interval//30)==0]
 
-# Sidebar
+# Sidebar setup
 st.sidebar.header("Buyers & Clients")
 buyers_input = st.sidebar.text_area("Buyers (one per line)", "\n".join(st.session_state.buyers))
 st.session_state.buyers = [b.strip() for b in buyers_input.splitlines() if b.strip()]
@@ -91,7 +91,7 @@ st.sidebar.subheader("Días de la semana")
 st.session_state.selected_days = st.sidebar.multiselect("Seleccionar días", DAYS, default=st.session_state.selected_days)
 autosave()
 
-# Tabs
+# Tabs for scheduling
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
 
 with tab_random:
@@ -119,15 +119,17 @@ with tab_random:
     days_run = st.multiselect("Días para esta corrida", st.session_state.selected_days, default=st.session_state.selected_days)
     if st.button("🔀 Optimizar Todo"):
         manual_appts = list(st.session_state.locked_manual)
+        # Keep all existing random appointments + add new ones
         all_random = [(c,b,d,t) for (c,b,d,t) in st.session_state.appointments if (c,b,d,t) not in st.session_state.locked_manual]
         for b in selected_buyers:
             for c in selected_clients:
                 for d in days_run:
                     all_random.append((c,b,d,None))
+        # Don't clear old randoms; we rebuild them below
         st.session_state.appointments = manual_appts.copy()
         st.session_state.moved = []
         skipped=[]; st.session_state.skipped_list=[]
-        summary={d:{"added":0,"moved":0,"skipped":0} for d in days_run}
+        summary={d:{"added":0,"moved":0,"kept":0,"skipped":0} for d in days_run}
         for b in selected_buyers:
             for d in days_run:
                 appts=[(c,b,d,t) for (c,b2,d2,t) in all_random if b2==b and d2==d]
@@ -137,20 +139,26 @@ with tab_random:
                 slots.sort(key=lambda h:HOURS.index(h))
                 for (c,b2,d2,t) in appts:
                     assigned=False
-                    for s in slots:
-                        if is_slot_free(c,b,d,s):
-                            if t and t!=s:
-                                st.session_state.moved.append((c,b,d,s))
-                                summary[d]["moved"]+=1
-                            elif t is None:
-                                summary[d]["added"]+=1
-                            st.session_state.appointments.append((c,b,d,s))
-                            slots.remove(s); assigned=True; break
+                    # Prefer to keep old times if possible
+                    if t and t in slots and is_slot_free(c,b,d,t):
+                        st.session_state.appointments.append((c,b,d,t))
+                        slots.remove(t)
+                        summary[d]["kept"]+=1
+                        assigned=True
+                    else:
+                        for s in slots:
+                            if is_slot_free(c,b,d,s):
+                                if t and t!=s:
+                                    st.session_state.moved.append((c,b,d,s)); summary[d]["moved"]+=1
+                                elif t is None:
+                                    summary[d]["added"]+=1
+                                st.session_state.appointments.append((c,b,d,s))
+                                slots.remove(s); assigned=True; break
                     if not assigned:
                         skipped.append((c,b,d)); st.session_state.skipped_list.append((c,b,d))
                         summary[d]["skipped"]+=1
         autosave()
-        st.success("\n".join([f"**{d}**: {v['added']} nuevas, {v['moved']} movidas, {v['skipped']} sin espacio" for d,v in summary.items()]))
+        st.info(" | ".join([f"{d}: {v['kept']} kept, {v['added']} new, {v['moved']} moved, {v['skipped']} skipped" for d,v in summary.items()]))
 
 with tab_manual:
     st.subheader("📝 Agendar Manual (Bloqueadas)")
