@@ -33,7 +33,7 @@ section[data-testid="stSidebar"] div.stButton > button:first-child {
 }
 div.stButton > button:first-child:hover,
 section[data-testid="stSidebar"] div.stButton > button:first-child:hover {
-    background-color: #334155 !important;
+    background-color: #c7d7dc !important;
 }
 
 /* Table styles */
