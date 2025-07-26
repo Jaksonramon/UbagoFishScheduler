@@ -9,16 +9,16 @@ from openpyxl.styles import PatternFill, Font, Alignment
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 1.7 – Fixed Totals, Warnings, Corrected Manual Scheduling")
+st.caption("Version 1.8 – Sorted, Searchable Edit Dropdown + All v1.7 Features")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0, 30)]
 DATA_FILE = "ubagofish_data.json"
 
+# Initialize session state
 for key in ["clients", "buyers", "appointments"]:
     if key not in st.session_state:
         st.session_state[key] = []
-
 if "start_hour" not in st.session_state: st.session_state.start_hour = "06:00"
 if "end_hour" not in st.session_state: st.session_state.end_hour = "21:30"
 if "lunch_start" not in st.session_state: st.session_state.lunch_start = "12:00"
@@ -56,21 +56,19 @@ def autosave():
 load_data()
 
 def is_in_lunch_break(time_str):
-    # Check if a given time falls within lunch break.
     return HOURS.index(st.session_state.lunch_start) <= HOURS.index(time_str) < HOURS.index(st.session_state.lunch_end)
 
 def is_slot_free(client, buyer, day, time):
-    # Check if the time slot is free (no conflicts for that client or buyer).
     for (c, b, d, t) in st.session_state.appointments:
         if d == day and t == time and (c == client or b == buyer):
             return False
     return True
 
 def get_next_available_slots(start, end, interval):
-    # Return all available slots between start and end, excluding lunch.
     start_idx, end_idx = HOURS.index(start), HOURS.index(end)
     return [h for h in HOURS[start_idx:end_idx] if not is_in_lunch_break(h) and HOURS.index(h) % (interval//30)==0]
 
+# Sidebar
 st.sidebar.header("Buyers & Clients")
 buyers_input = st.sidebar.text_area("Buyers (one per line)", "\n".join(st.session_state.buyers))
 st.session_state.buyers = [b.strip() for b in buyers_input.splitlines() if b.strip()]
@@ -106,6 +104,7 @@ with st.sidebar.expander("🗑️ Borrar Citas"):
         autosave()
         st.success(f"Todas las citas de {day_to_clear} eliminadas.")
 
+# Tabs for randomizer and manual scheduling
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
 
 with tab_random:
@@ -177,6 +176,26 @@ with tab_manual:
                     autosave()
                     st.success("Cita agendada exitosamente.")
 
+# Collapsible Edit Section with sorted, searchable dropdown
+with st.expander("✏️ Editar Citas"):
+    if st.session_state.appointments:
+        # Sort appointments
+        def sort_key(a):
+            return (DAYS.index(a[2]), HOURS.index(a[3]), a[1], a[0])
+        sorted_appts = sorted(st.session_state.appointments, key=sort_key)
+        # Build display labels with day separators
+        options = []
+        last_day = None
+        for (c,b,d,t) in sorted_appts:
+            if d != last_day and last_day is not None:
+                options.append("----")  # blank separator
+            options.append(f"{d} - {t} | {b} - {c}")
+            last_day = d
+        selected_label = st.selectbox("Selecciona cita para editar", options, key="edit_selector")
+        st.info(f"Seleccionaste: {selected_label}")
+    else:
+        st.info("No hay citas para editar.")
+
 st.markdown("---")
 st.subheader("📅 Calendario semanal de citas")
 if st.session_state.appointments:
@@ -196,16 +215,17 @@ else:
 def export_schedule():
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        for entity_type, col_index in [("Buyers", 1), ("Clients", 0)]:
+        for entity_type in ["Buyers", "Clients"]:
             for day in DAYS:
-                df_entity = pd.DataFrame(index=HOURS, columns=(st.session_state.buyers if entity_type=="Buyers" else st.session_state.clients))
-                for (c, b, d, t) in st.session_state.appointments:
+                cols = st.session_state.buyers if entity_type=="Buyers" else st.session_state.clients
+                df_entity = pd.DataFrame(index=HOURS, columns=cols)
+                for (c,b,d,t) in st.session_state.appointments:
                     if d == day:
                         key = b if entity_type=="Buyers" else c
-                        df_entity.at[t, key] = (c if entity_type=="Buyers" else b)
+                        df_entity.at[t,key] = (c if entity_type=="Buyers" else b)
                 totals = [df_entity[col].notna().sum() for col in df_entity.columns]
                 totals_row = pd.DataFrame([["TOTAL"] + totals], columns=["Time"] + list(df_entity.columns))
-                df_export = pd.concat([totals_row, df_entity.reset_index().rename(columns={"index": "Time"})])
+                df_export = pd.concat([totals_row, df_entity.reset_index().rename(columns={"index":"Time"})])
                 df_export.to_excel(writer, sheet_name=f"{entity_type}_{day}", index=False)
     output.seek(0)
     return output
