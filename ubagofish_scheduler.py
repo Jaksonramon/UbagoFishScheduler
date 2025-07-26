@@ -3,13 +3,12 @@ import streamlit as st
 import pandas as pd
 import json, os
 from io import BytesIO
-from random import choice
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.0 – Smart Randomizer (Sequential & Mark Moved)")
+st.caption("Version 2.0 – Smart Randomizer + Time Windows")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -60,12 +59,11 @@ def autosave(): save_data()
 
 load_data()
 
-# Helpers
 def is_in_lunch_break(time_str):
     return HOURS.index(st.session_state.lunch_start) <= HOURS.index(time_str) < HOURS.index(st.session_state.lunch_end)
 
 def is_slot_free(client, buyer, day, time):
-    for (c, b, d, t) in st.session_state.appointments:
+    for (c,b,d,t) in st.session_state.appointments:
         if d == day and t == time and (c == client or b == buyer):
             return False
     return True
@@ -118,11 +116,11 @@ with st.sidebar.expander("🗑️ Borrar Citas"):
         autosave()
         st.success(f"Todas las citas de {day_to_clear} eliminadas.")
 
-# Smart Randomizer
+# Tabs
 tab_random, tab_manual = st.tabs(["🎲 Generador Aleatorio", "📝 Agendar Manualmente"])
 
 with tab_random:
-    st.subheader("🎲 Generar citas aleatorias (Optimizado)")
+    st.subheader("🎲 Generar y Optimizar Citas (con ventanas horarias)")
     selected_buyers = []
     col1, col2 = st.columns([1,1])
     with col1:
@@ -133,7 +131,8 @@ with tab_random:
         if st.button("➕ Agregar otro Buyer"): st.session_state.buyers_random.append("")
     with col2:
         selected_clients = st.multiselect("Seleccionar Clients", options=st.session_state.clients)
-    st.markdown("### Ventanas horarias (opcional)")
+
+    st.markdown("### Configurar Ventanas Horarias (opcional)")
     for buyer in selected_buyers:
         st.session_state.time_windows.setdefault(buyer, {})
         for day in st.session_state.selected_days:
@@ -143,39 +142,41 @@ with tab_random:
             with col_to:
                 end = st.selectbox(f"{buyer} - {day} hasta", HOURS, key=f"{buyer}_{day}_end", index=HOURS.index(st.session_state.time_windows.get(buyer, {}).get(day, {}).get("end", st.session_state.end_hour)))
             st.session_state.time_windows[buyer][day] = {"start": start, "end": end}
+
     interval = st.selectbox("Duración de la cita (min)", [30, 60])
 
     if st.button("🔀 Generar y Optimizar Citas"):
-        # Keep manual appointments fixed, collect random ones (including new ones)
         manual_appts = list(st.session_state.locked_manual)
         random_appts = [(c,b,d,t) for (c,b,d,t) in st.session_state.appointments if (c,b,d,t) not in st.session_state.locked_manual]
-
-        # Add new random appointments as placeholders (unassigned yet)
         for buyer in selected_buyers:
             for client in selected_clients:
                 for day in st.session_state.selected_days:
-                    random_appts.append((client, buyer, day, None))
-
-        # Clear schedule and rebuild
+                    random_appts.append((client,buyer,day,None))
         st.session_state.appointments = manual_appts.copy()
-        moved_appts = []
-
-        # Group by Buyer, day and assign sequential slots
+        moved_appts, skipped = [], []
         for buyer in selected_buyers:
             for day in st.session_state.selected_days:
-                appts = [(c,buyer,day,t) for (c,b,bday,t) in random_appts if b==buyer and bday==day]
+                appts = [(c,buyer,day,t) for (c,b,d,t) in random_appts if b==buyer and d==day]
                 if not appts: continue
-                slots = get_time_slots(st.session_state.time_windows.get(buyer,{}).get(day,{}).get("start", st.session_state.start_hour),
-                                       st.session_state.time_windows.get(buyer,{}).get(day,{}).get("end", st.session_state.end_hour), interval)
+                start = st.session_state.time_windows.get(buyer,{}).get(day,{}).get("start", st.session_state.start_hour)
+                end = st.session_state.time_windows.get(buyer,{}).get(day,{}).get("end", st.session_state.end_hour)
+                slots = get_time_slots(start,end,interval)
                 slots.sort(key=lambda h: HOURS.index(h))
-                for idx, (c,b,d,t) in enumerate(appts):
-                    if idx < len(slots) and is_slot_free(c,buyer,day,slots[idx]):
-                        new_t = slots[idx]
-                        if t is not None and t != new_t:
-                            moved_appts.append((c,buyer,day,new_t))
-                        st.session_state.appointments.append((c,buyer,day,new_t))
+                for idx,(c,b,d,t) in enumerate(appts):
+                    assigned = False
+                    for slot in slots:
+                        if is_slot_free(c,buyer,day,slot):
+                            new_t = slot
+                            if t is not None and t != new_t:
+                                moved_appts.append((c,buyer,day,new_t))
+                            st.session_state.appointments.append((c,buyer,day,new_t))
+                            slots.remove(slot)
+                            assigned = True
+                            break
+                    if not assigned:
+                        skipped.append((c,buyer,day))
         autosave()
-        st.success(f"Citas optimizadas. {len(moved_appts)} citas movidas.")
+        st.success(f"Citas optimizadas. {len(moved_appts)} movidas, {len(skipped)} no pudieron agendarse por restricciones.")
 
 with tab_manual:
     st.subheader("📝 Agendar Manualmente (Bloqueadas)")
@@ -214,7 +215,7 @@ if st.session_state.appointments:
             for (c,b,d,t) in day_appointments:
                 if t == time:
                     label = f"{c} - {b}"
-                    if (c,b,d,t) not in st.session_state.locked_manual and any(appt for appt in st.session_state.appointments if appt[0]==c and appt[1]==b and appt[2]==d and appt[3]==t):
+                    if (c,b,d,t) not in st.session_state.locked_manual:
                         label += " (moved)"
                     cell.append(label)
             row[time] = "; ".join(cell)
@@ -225,7 +226,7 @@ if st.session_state.appointments:
 else:
     st.info("No hay citas programadas aún.")
 
-# Excel export (same styling as v1.9)
+# Excel export (same as before)
 def style_excel(workbook,lunch_start,lunch_end):
     thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
     blue_fill = PatternFill(start_color="305496", end_color="305496", fill_type="solid")
