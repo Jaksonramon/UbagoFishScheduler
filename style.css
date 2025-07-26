@@ -1,24 +1,33 @@
-/* General background and font adjustments */
 body, .stApp {
-    background-color: #1e1e1e; /* Dark background */
-    color: #e6e6e6;            /* Light text for readability */
+    background-color: #1e1e1e;
+    color: #f5f5f5;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 15px;
 }
 
 /* Sidebar styling */
 [data-testid="stSidebar"] {
     background-color: #2b2b2b;
-    color: #f2f2f2;
+    color: #ffffff;
     font-weight: 500;
 }
-
-/* Headers */
-h1, h2, h3, h4 {
-    color: #ffffff;
+[data-testid="stSidebar"] * {
+    color: #f5f5f5 !important;
 }
 
-/* Buttons - outlined transparent style */
+/* Input fields (text areas, select boxes) */
+.stTextInput>div>div>input, textarea, select {
+    background-color: #3a3a3a !important;
+    color: #f5f5f5 !important;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    padding: 5px;
+}
+.stSelectbox, .stTextArea {
+    background-color: #3a3a3a !important;
+    color: #f5f5f5 !important;
+}
+
+/* Buttons */
 .stButton>button {
     border: 1px solid #f2f2f2;
     color: #f2f2f2;
@@ -32,27 +41,19 @@ h1, h2, h3, h4 {
     border-color: #ffffff;
 }
 
-/* Data tables */
+/* Dataframe/Table styling */
 [data-testid="stDataFrame"] table {
     border-collapse: collapse;
     color: #f0f0f0;
     background-color: #2b2b2b;
     font-size: 13px;
 }
-[data-testid="stDataFrame"] tr:nth-child(even) {
-    background-color: #3a3a3a;
-}
-[data-testid="stDataFrame"] tr:nth-child(odd) {
-    background-color: #2b2b2b;
-}
+[data-testid="stDataFrame"] tr:nth-child(even) { background-color: #3a3a3a; }
+[data-testid="stDataFrame"] tr:nth-child(odd) { background-color: #2b2b2b; }
 [data-testid="stDataFrame"] th {
     background-color: #444444;
     color: #ffffff;
     text-align: center;
 }
 
-/* Collapsible expander */
-.streamlit-expanderHeader {
-    color: #f2f2f2;
-    font-weight: bold;
 }
