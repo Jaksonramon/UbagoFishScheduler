@@ -8,7 +8,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 st.set_page_config(page_title="UbagoFish Scheduler", layout="wide")
 st.title("🐟 UbagoFish Scheduler")
-st.caption("Version 2.3 – Clean Randomizer + Clear Options (Final)")
+st.caption("Version 2.3 – Clean Randomizer + Clear Options + Day Hours Selector")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HOURS = [f"{h:02d}:{m:02d}" for h in range(6, 22) for m in (0,30)]
@@ -79,6 +79,11 @@ clients_input = st.sidebar.text_area("Clients (one per line)", "\n".join(st.sess
 st.session_state.clients = [c.strip() for c in clients_input.splitlines() if c.strip()]
 if st.sidebar.button("Guardar nombres"):
     autosave(); st.sidebar.success("Nombres guardados.")
+
+# Start and End of Day selectors
+st.sidebar.subheader("Horario del Día")
+st.session_state.start_hour = st.sidebar.selectbox("Inicio del Día", HOURS, index=HOURS.index(st.session_state.start_hour))
+st.session_state.end_hour = st.sidebar.selectbox("Fin del Día", HOURS, index=HOURS.index(st.session_state.end_hour))
 
 # Clear appointments expander
 with st.sidebar.expander("🗑️ Borrar Citas"):
