@@ -239,3 +239,11 @@ with st.expander("🔧 Editar Citas", expanded=st.session_state.edit_expander_op
                 elif not is_slot_free(new_c,new_b,new_d,new_h): st.warning("El Buyer o Client ya tiene cita a esa hora.")
                 else:
                     st.session_state.appointments[idx]=(new_c,new_b,new_d,new_h); autosave(); st.success("Cita editada.")
+
+    with st.expander("🗑️ Borrar Citas por Día"):
+        day_to_clear = st.selectbox("Seleccionar día", DAYS)
+        confirm_clear = st.checkbox("Confirmar eliminación de todas las citas de este día")
+        if st.button("Borrar citas del día seleccionado") and confirm_clear:
+            st.session_state.appointments = [a for a in st.session_state.appointments if a[2] != day_to_clear]
+            autosave()
+            st.success(f"Todas las citas de {day_to_clear} han sido eliminadas.")
