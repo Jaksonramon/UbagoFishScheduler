@@ -146,10 +146,10 @@ def is_slot_free(client: str, buyer: str, day: str, time: str) -> bool:
 # -------------------------
 with st.sidebar:
     st.header("Configuration & Data")
-    buyers_input = st.text_area("Buyers (uno por línea)", "
+    buyers_input = st.text_area("Buyers (uno por línea)", ""
 ".join(st.session_state.buyers), height=180)
     st.session_state.buyers = [b.strip() for b in buyers_input.splitlines() if b.strip()]
-    clients_input = st.text_area("Clients (uno por línea)", "
+    clients_input = st.text_area("Clients (uno por línea)", ""
 ".join(st.session_state.clients), height=180)
     st.session_state.clients = [c.strip() for c in clients_input.splitlines() if c.strip()]
 
